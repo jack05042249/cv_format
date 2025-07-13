@@ -9,7 +9,6 @@ import AwardIcon from '../img/award.png';
 import LanguageIcon from '../img/Language.png';
 import BookOpenIcon from '../img/bookopen.png';
 import PhoneIcon from '../img/phone.png';
-import TelegramIcon from '../img/telegram.png';
 import EmailIcon from '../img/email.png';
 import AddressIcon from '../img/address.png';
 import LinkedinIcon from '../img/linkedin.png';
@@ -127,10 +126,8 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
                 )}
                 {cvData.contact.phone && (
                   <div className="flex items-center justify-start gap-2">
-                    <img src={TelegramIcon} alt="Telegram" className="w-4 h-4 text-red-600 flex-shrink-0" />
                     <img src={PhoneIcon} alt="Phone" className="w-4 h-4 text-red-600 flex-shrink-0" />
                     <span className="break-all">{cvData.contact.phone}</span>
-                    <span>pppppppppp</span>
                   </div>
                 )}
                 {cvData.contact.email && (
