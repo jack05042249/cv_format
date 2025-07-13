@@ -52,9 +52,9 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
     <div className="mb-2">
       <div className={`flex items-center gap-2 mb-3 ${isLeftColumn ? 'justify-start' : 'justify-start'}`}>
         <div className="text-red-600">{icon}</div>
-        <h3 className="font-bold text-black text-sm">{title}</h3>
+        <h3 className="font-bold text-red-600 text-sm">{title}</h3>
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center ml-5">
         <div className={`h-0.5 bg-red-600 ${isLeftColumn ? 'w-8' : 'w-10'}`}></div>
         <div className={`h-0.5 bg-gray-300 flex-1 ${isLeftColumn ? 'ml-0' : 'ml-0'}`}></div>
       </div>
@@ -142,8 +142,12 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
         </div>
       </div>
 
-      {/* Red separator line */}
-      <div className="h-1 bg-red-600"></div>
+       <div className='bg-red-600' style={{
+        height: '6px',
+        width: '40%',
+        clipPath: 'polygon(0 0, 95% 0, 100% 100%, 0% 100%)'
+      }} />
+      <div className="h-1 bg-red-600 mb-6"></div>
     </>
   );
 
@@ -153,21 +157,28 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       {cvData.summary && (
         <div>
           <SectionHeader icon={<img src={UserIcon} alt="User" className="w-4 h-4" />} title="PROFESSIONAL SUMMARY" isLeftColumn />
-          <p className="text-black leading-relaxed text-sm">{cvData.summary}</p>
+          <p className="text-black leading-relaxed text-sm ml-5">{cvData.summary}</p>
         </div>
       )}
 
-      {/* Skills */}
-      {cvData.skills && Array.isArray(cvData.skills) && cvData.skills.length > 0 && (
+      {/* Education */}
+      {cvData.education && cvData.education.length > 0 && (
         <div>
-          <SectionHeader icon={<img src={AwardIcon} alt="Award" className="w-4 h-4" />} title="SKILLS" isLeftColumn />
-          <div className="space-y-2">
-            {cvData.skills.map((skill, index) => (
-              <div key={index}>
-                <div className="text-sm font-medium text-black mb-1">
-                  {skill.skills.join(', ')}
+          <SectionHeader icon={<img src={GraduationCapIcon} alt="Graduation Cap" className="w-4 h-4" />} title="EDUCATION" isLeftColumn />
+          <div className="space-y-3">
+            {cvData.education.map((edu, index) => (
+              <div key={index} className="space-y-2">
+                <div className="flex justify-between items-start">
+                  <span className="text-red-600 font-bold mr-2 ml-1">•</span>
+                  <div className="flex-1 pr-3">
+                    <h4 className="text-black text-sm mb-1">{(edu.institution || '').toUpperCase()}</h4>
+                    {edu.field && <p className="text-sm text-black">{edu.field}</p>}
+                  </div>
                 </div>
-                <ProgressBar percentage={getSkillLevel()} />
+                <div className="text-sm text-black flex-shrink-0 ml-4">
+                    {`${processDateRange(edu.start_date, edu.end_date)}`}
+                  </div>
+                <p className="font-bold text-red-600 text-sm ml-4">{edu.degree || ''}</p>
               </div>
             ))}
           </div>
@@ -178,7 +189,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       {cvData.contact?.links && Object.keys(cvData.contact.links).length > 0 && (
         <div>
           <SectionHeader icon={<img src={LinkedinIcon} alt="Linkedin" className="w-4 h-4" />} title="LINKS" isLeftColumn />
-          <div className="space-y-2">
+          <div className="space-y-2 ml-5">
             {Object.entries(cvData.contact.links).map(([linkType, linkUrl], index) => (
               <div key={index}>
                 <p className="text-sm font-bold text-black mb-1">{linkType.toUpperCase()}:</p>
@@ -197,7 +208,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       {cvData.languages_spoken && cvData.languages_spoken.length > 0 && (
         <div>
           <SectionHeader icon={<img src={LanguageIcon} alt="Language" className="w-4 h-4" />} title="LANGUAGES" isLeftColumn />
-          <div className="space-y-2">
+          <div className="space-y-2 ml-5">
             {cvData.languages_spoken.map((language, index) => {
               const lang = typeof language === 'string' ? language : language.language || language.name || '';
               const level = typeof language === 'string' ? 'Intermediate' : language.level || 'Intermediate';
@@ -218,8 +229,11 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
           <SectionHeader icon={<img src={BookOpenIcon} alt="Book Open" className="w-4 h-4" />} title="CERTIFICATIONS" isLeftColumn />
           <div className="space-y-2">
             {cvData.certifications.map((cert, index) => (
-              <div key={index} className="text-sm text-black">
-                <p className="font-bold leading-relaxed mb-1">{(cert.name || '').toUpperCase()}</p>
+              <div key={index} className="flex text-sm text-black justify-between items-start">
+                <span className="text-red-600 font-bold mr-3 ml-1">•</span>
+                <p className="flex-1 pr-3 leading-relaxed">
+                  {(cert.name || '').toUpperCase()}
+                </p>
                 {cert.issuer && <p className="text-sm text-gray-600">{cert.issuer}</p>}
               </div>
             ))}
@@ -238,49 +252,31 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
           <div className="space-y-3">
             {cvData.experience.map((exp, index) => (
               <div key={index} className="space-y-2">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 pr-3">
-                    <h4 className="font-bold text-black text-sm mb-1">{(exp.company || '').toUpperCase()}</h4>
-                    <p className="text-sm text-black">{exp.location || ''}</p>
-                  </div>
-                  <div className="text-sm font-bold text-black text-right flex-shrink-0">
-                    {`${processDateRange(exp.start_date, exp.end_date)}`}
-                  </div>
-                </div>
-                <p className="font-bold text-red-600 text-sm">{exp.title || ''}</p>
-                {exp.summary && (
-                  <p className="text-sm text-black mb-2">{exp.summary}</p>
-                )}
-                {exp.description && exp.description.length > 0 && (
-                  <div className="text-sm text-black leading-relaxed">
-                    {exp.description.map((desc, descIndex) => (
-                      <p key={descIndex} className="mb-1">• {desc.trim()}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Education */}
-      {cvData.education && cvData.education.length > 0 && (
-        <div>
-          <SectionHeader icon={<img src={GraduationCapIcon} alt="Graduation Cap" className="w-4 h-4" />} title="EDUCATION" />
-          <div className="space-y-3">
-            {cvData.education.map((edu, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 pr-3">
-                    <h4 className="font-bold text-black text-sm mb-1">{(edu.institution || '').toUpperCase()}</h4>
-                    {edu.field && <p className="text-sm text-black">{edu.field}</p>}
-                  </div>
-                  <div className="text-sm font-bold text-black text-right flex-shrink-0">
-                    {`${processDateRange(edu.start_date, edu.end_date)}`}
+                <div className="flex items-start">
+                  <span className="text-red-600 font-bold mr-2">•</span>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 pr-3">
+                        <h4 className="text-black text-sm mb-1">{(exp.company || '').toUpperCase()}</h4>
+                        <p className="text-sm text-black">{exp.location || ''}</p>
+                      </div>
+                      <div className="text-sm text-black text-right flex-shrink-0">
+                        {`${processDateRange(exp.start_date, exp.end_date)}`}
+                      </div>
+                    </div>
+                    <p className="text-red-600 font-medium text-sm">{exp.title || ''}</p>
+                    {exp.summary && (
+                      <p className="text-sm text-black mb-2">{exp.summary}</p>
+                    )}
+                    {exp.description && exp.description.length > 0 && (
+                      <div className="text-sm text-black leading-relaxed">
+                        {exp.description.map((desc, descIndex) => (
+                          <p key={descIndex} className="mb-1">• {desc.trim()}</p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <p className="font-bold text-red-600 text-sm">{edu.degree || ''}</p>
               </div>
             ))}
           </div>
@@ -294,16 +290,37 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
           <div className="space-y-3">
             {cvData.projects.map((project, index) => (
               <div key={index} className="space-y-2">
+                
                 <div className="flex justify-between items-start">
+                  <span className="text-red-600 font-bold mr-2">•</span>
                   <div className="flex-1 pr-3">
-                    <h4 className="font-bold text-black text-sm mb-1">{(project.project_name || '').toUpperCase()}</h4>
+                    <h4 className="font-medium text-black text-sm mb-1">{(project.project_name || '').toUpperCase()}</h4>
                     <p className="text-sm text-black">{project.organization || ''}</p>
                   </div>
-                  <div className="text-sm font-bold text-black text-right flex-shrink-0">
+                  <div className="text-sm text-black text-right flex-shrink-0">
                     {`${processDateRange(project.start_date, project.end_date)}`}
                   </div>
                 </div>
-                <p className="text-sm text-black leading-relaxed">{project.description || ''}</p>
+                <p className="text-sm text-black leading-relaxed ml-3">
+                  {project.description || ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Skills (moved from left column) */}
+      {cvData.skills && Array.isArray(cvData.skills) && cvData.skills.length > 0 && (
+        <div>
+          <SectionHeader icon={<img src={AwardIcon} alt="Award" className="w-4 h-4" />} title="SKILLS" />
+          <div className="space-y-2 ml-3">
+            {cvData.skills.map((skill, index) => (
+              <div key={index}>
+                <div className="text-sm text-black mb-1">
+                  {skill.skills.join(', ')}
+                </div>
+                <ProgressBar percentage={getSkillLevel()} />
               </div>
             ))}
           </div>
@@ -329,7 +346,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
         {content.leftColumn}
         
         {/* Vertical separator */}
-        <div className="w-0.5 bg-red-600"></div>
+        <div className="w-0.5 bg-red-600 mt-4"></div>
         
         {content.rightColumn}
       </div>

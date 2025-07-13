@@ -98,8 +98,8 @@ function processSingleDate(dateStr?: string): string {
   // Format based on available information
   if (hasMonth) {
     const monthNames = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+      "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
     ];
     const monthName = monthNames[date.getMonth()];
     const year = date.getFullYear();

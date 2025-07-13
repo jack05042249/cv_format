@@ -12,20 +12,21 @@ export const DownloadPanel: React.FC<DownloadPanelProps> = ({ cvData, options })
   const generateFilename = (downloadOption: DownloadOption) => {
     const firstName = cvData.first_name || '';
     const lastName = cvData.last_name || '';
+    const position = cvData.title || '';
     
-    if (!firstName || !lastName) {
-      return 'CV_Commit_Offshore.pdf';
-    }
+    // if (!firstName || !lastName || !position) {
+    //   return 'CV.pdf';
+    // }
 
     switch (downloadOption) {
       case 'full':
-        return `${firstName}${lastName}_Commit_Offshore.pdf`;
+        return `${firstName}_${lastName}_${position}_CV.pdf`;
       case 'name_only':
-        return `${firstName}_${lastName}_Commit_Offshore.pdf`;
+        return `${firstName}_${lastName}_${position}_CV.pdf`;
       case 'name_initial':
-        return `${firstName}_${lastName.charAt(0)}_Commit_Offshore.pdf`;
+        return `${firstName}_${lastName.charAt(0)}_${position}_CV.pdf`;
       default:
-        return 'CV_Commit_Offshore.pdf';
+        return 'CV.pdf';
     }
   };
 

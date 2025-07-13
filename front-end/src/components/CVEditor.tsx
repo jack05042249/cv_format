@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CVData, PersonalInfo, EmploymentHistory, Education, Skill } from '../types/cv';
 import { PersonalInfoEditor } from './PersonalInfoEditor';
 import { ExperienceEditor } from './ExperienceEditor';
@@ -14,6 +14,18 @@ export const CVEditor: React.FC<CVEditorProps> = ({
   cvData,
   onDataChange,
 }) => {
+  // Collapsible state for each section
+  const [openSections, setOpenSections] = useState({
+    personal: false,
+    experience: false,
+    education: false,
+    skills: false,
+  });
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
   const updatePersonalInfo = (personalInfo: PersonalInfo) => {
     onDataChange({ 
       ...cvData, 
@@ -66,25 +78,85 @@ export const CVEditor: React.FC<CVEditorProps> = ({
         </div>
 
         <div className="p-6 space-y-8">
-          <PersonalInfoEditor
-            personalInfo={personalInfo}
-            onChange={updatePersonalInfo}
-          />
+          {/* Personal Info Section */}
+          <div>
+            <button
+              type="button"
+              className="flex items-center w-full justify-between px-4 py-2 bg-slate-100 rounded hover:bg-slate-200 transition mb-2"
+              onClick={() => toggleSection('personal')}
+            >
+              <span className="font-semibold text-slate-700">Personal Information</span>
+              <span className="text-lg">{openSections.personal ? '▲' : '▼'}</span>
+            </button>
+            {openSections.personal && (
+              <div className="pt-2">
+                <PersonalInfoEditor
+                  personalInfo={personalInfo}
+                  onChange={updatePersonalInfo}
+                />
+              </div>
+            )}
+          </div>
 
-          <ExperienceEditor
-            experience={cvData.experience || []}
-            onChange={updateExperience}
-          />
+          {/* Experience Section */}
+          <div>
+            <button
+              type="button"
+              className="flex items-center w-full justify-between px-4 py-2 bg-slate-100 rounded hover:bg-slate-200 transition mb-2"
+              onClick={() => toggleSection('experience')}
+            >
+              <span className="font-semibold text-slate-700">Work Experience</span>
+              <span className="text-lg">{openSections.experience ? '▲' : '▼'}</span>
+            </button>
+            {openSections.experience && (
+              <div className="pt-2">
+                <ExperienceEditor
+                  experience={cvData.experience || []}
+                  onChange={updateExperience}
+                />
+              </div>
+            )}
+          </div>
 
-          <EducationEditor
-            education={cvData.education || []}
-            onChange={updateEducation}
-          />
+          {/* Education Section */}
+          <div>
+            <button
+              type="button"
+              className="flex items-center w-full justify-between px-4 py-2 bg-slate-100 rounded hover:bg-slate-200 transition mb-2"
+              onClick={() => toggleSection('education')}
+            >
+              <span className="font-semibold text-slate-700">Education</span>
+              <span className="text-lg">{openSections.education ? '▲' : '▼'}</span>
+            </button>
+            {openSections.education && (
+              <div className="pt-2">
+                <EducationEditor
+                  education={cvData.education || []}
+                  onChange={updateEducation}
+                />
+              </div>
+            )}
+          </div>
 
-          <SkillsEditor
-            skills={cvData.skills||[]}
-            onChange={updateSkills}
-          />
+          {/* Skills Section */}
+          <div>
+            <button
+              type="button"
+              className="flex items-center w-full justify-between px-4 py-2 bg-slate-100 rounded hover:bg-slate-200 transition mb-2"
+              onClick={() => toggleSection('skills')}
+            >
+              <span className="font-semibold text-slate-700">Skills</span>
+              <span className="text-lg">{openSections.skills ? '▲' : '▼'}</span>
+            </button>
+            {openSections.skills && (
+              <div className="pt-2">
+                <SkillsEditor
+                  skills={cvData.skills||[]}
+                  onChange={updateSkills}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
