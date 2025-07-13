@@ -8,7 +8,7 @@ import GraduationCapIcon from '../img/GraduationCap.png';
 import AwardIcon from '../img/award.png';
 import LanguageIcon from '../img/Language.png';
 import BookOpenIcon from '../img/bookopen.png';
-import PhoneIcon from '../img/phone.png';
+import PhoneIcon from '../img/telegram.png';
 import EmailIcon from '../img/email.png';
 import AddressIcon from '../img/address.png';
 import LinkedinIcon from '../img/linkedin.png';
