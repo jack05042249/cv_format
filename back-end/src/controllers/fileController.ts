@@ -114,8 +114,9 @@ export const uploadFile = async (req: Request, res: Response) => {
     }
 
     // Use ConvertAPI to extract content and links
+    console.log("Extracting PDF Links ...")
     const extractedData = await extractContentAndLinks(dataBuffer);
-    
+    console.log("Extracting PDF Links Completed.")
     // If extracted content is null or empty, use the file buffer as text
     let content: string;
     if (!extractedData.content || extractedData.content.length === 0) {
@@ -128,24 +129,9 @@ export const uploadFile = async (req: Request, res: Response) => {
       }
     }
     content = content + '\n\n' + extractedData.links.join('\n')
-    
-    // Save the PDF content as a text file
-    const timestamp = new Date().getTime();
-    const originalName = req.file.originalname || 'unknown';
-    const textFileName = `${originalName.replace('.pdf', '')}_${timestamp}.txt`;
-    const textFilePath = path.join(__dirname, '../../uploads', textFileName);
-    
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(__dirname, '../../uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    
-    // Write the PDF content to text file
-    fs.writeFileSync(textFilePath, content);
-    
+    console.log("Extracting PDF Links ...")
     const result = await sendToOpenAI(content);
-    
+    console.log("Extracting PDF Links Completed.")
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Internal server error', error: (error as Error).message });

@@ -1,12 +1,13 @@
 import OpenAI from 'openai';
 
 export const sendToOpenAI = async (content: string) => {
+  const startTime = Date.now();
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  // Extract all the personal information from the CV and return it in a structured format.
-  const response_persoanl_info = await openai.chat.completions.create({
+  // Prepare all OpenAI API calls as promises
+  const personalInfoPromise = openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       { role: 'system', content: `You are pdf parser. Extract all information from pdf. If don't mention about required information, don't need fill in that field. Find only personal links in pdf. Output only JSON, no explanation.
@@ -62,20 +63,8 @@ export const sendToOpenAI = async (content: string) => {
     temperature: 0.1,
     max_tokens: 1024,
   });
-  const result_personal_info_string = response_persoanl_info.choices[0].message?.content;
-  let json_personal_info = result_personal_info_string?.trim() || '{}';
-  if (json_personal_info.startsWith('```json\n') && json_personal_info.endsWith('```')) {
-    json_personal_info = json_personal_info.slice(7, -3).trim();
-  }
-  let result_personal_info;
-  try {
-    result_personal_info = JSON.parse(json_personal_info);
-  } catch (jsonError) {
-    result_personal_info = { message: 'Failed to parse OpenAI response as JSON', error: (jsonError as Error).message, raw: result_personal_info_string };
-  }
 
-  // Extract all the experience information from the CV and return it in a structured format.
-  const response_experience = await openai.chat.completions.create({
+  const experiencePromise = openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       { role: 'system', content: `Extract all the experience information from the pdf. If there is no required information, don't need fill the field. Output only JSON, no explanation.
@@ -98,20 +87,8 @@ export const sendToOpenAI = async (content: string) => {
     temperature: 0.1,
     max_tokens: 8192,
   });
-  const result_experience_string = response_experience.choices[0].message?.content;
-  let json_experience = result_experience_string?.trim() || '{}';
-  if (json_experience.startsWith('```json\n') || json_experience.endsWith('```')) {
-    json_experience = json_experience.slice(7, -3).trim();
-  }
-  let result_experience;
-  try {
-    result_experience = JSON.parse(json_experience);
-  } catch (jsonError) {
-    result_experience = { message: 'Failed to parse OpenAI response as JSON', error: (jsonError as Error).message, raw: result_experience_string };
-  }
 
-  // Extract all the Projects information from the CV and return it in a structured format.
-  const response_project = await openai.chat.completions.create({
+  const projectPromise = openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       { role: 'system', content: `Extract all the projects information from the pdf, not work experience. If there is no information about project, fill [] in that field. Output only JSON, no explanation.
@@ -131,20 +108,8 @@ export const sendToOpenAI = async (content: string) => {
     temperature: 0.1,
     max_tokens: 8192,
   });
-  const result_project_string = response_project.choices[0].message?.content;
-  let json_project = result_project_string?.trim() || '{}';
-  if (json_project.startsWith('```json\n') || json_project.endsWith('```')) {
-    json_project = json_project.slice(7, -3).trim();
-  }
-  let result_project;
-  try {
-    result_project = JSON.parse(json_project);
-  } catch (jsonError) {
-    result_project = { message: 'Failed to parse OpenAI response as JSON', error: (jsonError as Error).message, raw: result_project_string };
-  }
-  
-  // Extract all the Projects information from the CV and return it in a structured format.
-  const response_skills = await openai.chat.completions.create({
+
+  const skillsPromise = openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       { role: 'system', content: `Extract all only tech-skill information from the pdf. If there is no requried information, fill {} in that field. Output only JSON, no explanation.
@@ -160,6 +125,55 @@ export const sendToOpenAI = async (content: string) => {
     temperature: 0.0,
     max_tokens: 8192,
   });
+
+  // Run all API calls in parallel
+  const [response_persoanl_info, response_experience, response_project, response_skills] = await Promise.all([
+    personalInfoPromise,
+    experiencePromise,
+    projectPromise,
+    skillsPromise,
+  ]);
+
+  // Process personal info
+  const result_personal_info_string = response_persoanl_info.choices[0].message?.content;
+  let json_personal_info = result_personal_info_string?.trim() || '{}';
+  if (json_personal_info.startsWith('```json\n') && json_personal_info.endsWith('```')) {
+    json_personal_info = json_personal_info.slice(7, -3).trim();
+  }
+  let result_personal_info;
+  try {
+    result_personal_info = JSON.parse(json_personal_info);
+  } catch (jsonError) {
+    result_personal_info = { message: 'Failed to parse OpenAI response as JSON', error: (jsonError as Error).message, raw: result_personal_info_string };
+  }
+
+  // Process experience
+  const result_experience_string = response_experience.choices[0].message?.content;
+  let json_experience = result_experience_string?.trim() || '{}';
+  if (json_experience.startsWith('```json\n') || json_experience.endsWith('```')) {
+    json_experience = json_experience.slice(7, -3).trim();
+  }
+  let result_experience;
+  try {
+    result_experience = JSON.parse(json_experience);
+  } catch (jsonError) {
+    result_experience = { message: 'Failed to parse OpenAI response as JSON', error: (jsonError as Error).message, raw: result_experience_string };
+  }
+
+  // Process projects
+  const result_project_string = response_project.choices[0].message?.content;
+  let json_project = result_project_string?.trim() || '{}';
+  if (json_project.startsWith('```json\n') || json_project.endsWith('```')) {
+    json_project = json_project.slice(7, -3).trim();
+  }
+  let result_project;
+  try {
+    result_project = JSON.parse(json_project);
+  } catch (jsonError) {
+    result_project = { message: 'Failed to parse OpenAI response as JSON', error: (jsonError as Error).message, raw: result_project_string };
+  }
+
+  // Process skills
   const result_skills_string = response_skills.choices[0].message?.content;
   let json_skills = result_skills_string?.trim() || '{}';
   if (json_skills.startsWith('```json\n') || json_skills.endsWith('```')) {
@@ -172,12 +186,13 @@ export const sendToOpenAI = async (content: string) => {
     result_skills = { message: 'Failed to parse OpenAI response as JSON', error: (jsonError as Error).message, raw: result_skills_string };
   }
 
+  const endTime = Date.now();
+  console.log(`sendToOpenAI execution time: ${endTime - startTime} ms`);
+
   return {
     ...result_personal_info,
     experience: result_experience.experience || [],
     projects: result_project.projects || [],
     skills: result_skills.skills || {},
   };
-
-
 }; 
