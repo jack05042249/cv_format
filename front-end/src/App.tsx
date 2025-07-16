@@ -126,13 +126,10 @@ function App() {
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-6 border-b border-slate-200">
                 <h2 className="text-xl font-semibold text-slate-800 mb-2">Live Preview</h2>
-                <p className="text-slate-600">
-                  This is how your CV will appear in the generated PDF (A4 format)
-                </p>
               </div>
               
               {/* Full width preview without padding */}
-              <div className="w-full overflow-auto bg-gray-100">
+              <div className="w-full overflow-auto bg-white">
                 <CVPreview cvData={cvData} options={generationOptions} />
               </div>
             </div>

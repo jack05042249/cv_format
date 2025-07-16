@@ -30,7 +30,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
 
   const optimizeTwoColumnWidths = (
     contact_info: { contact: string; image: string; width: number }[]
-  ): [{ contact: string; image: string; width: number }[], number, number, number] => {
+  ): [{ contact: string; image: string; width: number }[], { contact: string; image: string; width: number }[], number, number, number] => {
     // Step 1: Sort items descending by width
     const sorted = [...contact_info].sort((a, b) => a.width - b.width);
 
@@ -39,6 +39,8 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       solo = sorted.pop()!; // Remove the longest (last after sort ascending)
     }
     const result: typeof contact_info = [];
+    const leftresult :typeof contact_info = [];
+    const rightresult :typeof contact_info = [];
     let left = 0;
     let right = sorted.length - 1;
     let maxwidthleft = 0
@@ -51,8 +53,8 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
         break;
       }
       // Pair the widest with narrowest to balance row width
-      result.push(sorted[left]);
-      result.push(sorted[right]);
+      leftresult.push(sorted[left]);
+      rightresult.push(sorted[right]);
       if (maxwidthleft < sorted[left].width){
         maxwidthleft = sorted[left].width
       }
@@ -63,12 +65,12 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       right--;
     }
     if(solo){
-      result.push(solo)
+      leftresult.push(solo)
       if (solo.width > maxwidthleft + maxwidthright + 10) {
         space = solo.width - (maxwidthleft + maxwidthright)
       }
     }
-    return [result, maxwidthleft, maxwidthright, space];
+    return [leftresult, rightresult, maxwidthleft, maxwidthright, space];
   }
   let telegramUrl = ""
   let contact_info: { contact: string; image: string; width: number }[] = [];
@@ -123,7 +125,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       ]
     }
   }
-  const [contact_info_sorted]: [{ contact: string; image: string; width: number }[], number, number, number] = optimizeTwoColumnWidths(contact_info);
+  const [contact_info_left, contact_info_right]: [{ contact: string; image: string; width: number }[], { contact: string; image: string; width: number }[], number, number, number] = optimizeTwoColumnWidths(contact_info);
   
   const getLanguageLevel = (level?: string) => {
     if (level === 'C2' || level === 'Native') return 100;
@@ -135,6 +137,13 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
     else return 70;
   };
 
+  const getSkillLevel = (level?: string) => {
+    if (level === 'Expert') return 100;
+    else if (level === 'Advanced') return 75;
+    else if (level === 'Intermediate') return 50;
+    else if (level === 'Beginner') return 25;
+    else return 50
+  };
   const ProgressBar = ({ percentage }: { percentage: number }) => (
     <div className="w-full bg-gray-200 rounded-full h-1.5">
       <div 
@@ -146,12 +155,12 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
 
   const SectionHeader = ({ icon, title, isLeftColumn = false }: { icon: React.ReactNode, title: string, isLeftColumn?: boolean }) => (
     <div className="mb-2">
-      <div className={`flex items-center gap-2 mb-3 ${isLeftColumn ? 'justify-start' : 'justify-start'}`}>
+      <div className={`flex items-center gap-2 mb-2 ${isLeftColumn ? 'justify-start' : 'justify-start'}`}>
         <div className="text-red-600">{icon}</div>
-        <h3 className="font-bold text-red-600 text-sm">{title}</h3>
+        <h3 className="font-bold text-red-600" style={{fontSize:'15px'}}>{title}</h3>
       </div>
-      <div className="flex items-center ml-5">
-        <div className={`h-0.5 bg-red-600 ${isLeftColumn ? 'w-8' : 'w-10'}`}></div>
+      <div className="flex items-center ml-6">
+        <div className={`h-0.5 bg-red-600 ${isLeftColumn ? 'w-12' : 'w-14'}`}></div>
         <div className={`h-0.5 bg-gray-300 flex-1 ${isLeftColumn ? 'ml-0' : 'ml-0'}`}></div>
       </div>
     </div>
@@ -160,9 +169,9 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
   const HeaderSection = () => (
     <>
       {/* Header Section */}
-      <div className="p-4 pb-3">
+      <div className="p-6 pb-3">
         <div className="flex justify-between items-start h-full">
-          <div className="pl-6" style={{width: '55%'}}>
+          <div className="pl-8" style={{width:'55%'}}>
             {options.includePersonalInfo ? (
               <>
                 {options.downloadOption === 'name_initial' ? (
@@ -178,7 +187,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
                     </h1>
                   </>
                 )}
-                <p className="text-base font-bold text-black">
+                <p className="text-base text-black">
                   {(() => {
                     const safeTitle_mini = (cvData.title || '').replace(/●/g, '|');
                     const safetitle = safeTitle_mini.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -201,43 +210,48 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
               </>
             )}
           </div>
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-end mr-5" >
             {/* Company Logo */}
             <img src={Logo} alt="Company Logo" className="w-24 object-contain mb-3 bg-white rounded" />          
             {cvData.contact && (
-              <div className="text-sm text-black space-y-1 text-right">
-                { contact_info_sorted.reduce<{ contact: string; image: string; width: number; }[][]>((acc, _, index, arr) => {
-                          // Group items in pairs (two items per row)
-                          if (index % 2 === 0) {
-                            acc.push(arr.slice(index, index + 2)); // slice the next two items
-                          }
-                          return acc;
-                        }, [])
-                        .map((pair, index) => (
-                          <div key={index} className="flex items-center justify-start gap-2">
-                            {pair.map((item, subIndex) =>
-                              item.contact ? (
-                                <div key={subIndex} className="flex items-center gap-2 pl-3">
-                                  <img
-                                    src={item.image}
-                                    alt=""
-                                    className="w-4 h-4 text-red-600 flex-shrink-0"
-                                  />
-                                  <span className="break-all">{item.contact}</span>
-                                </div>
-                              ) : null
-                            )}
-                          </div>
-                        ))}
-                    </div>
+              <div className="text-black text-right flex" style={{fontSize:'12px'}}>
+                <div>
+                  { contact_info_left.map((item, subIndex) =>
+                    item.contact ? (
+                      <div key={subIndex} className="flex items-center gap-2 pl-3">
+                        <img
+                          src={item.image}
+                          alt=""
+                          className="w-4 h-4 text-red-600 flex-shrink-0"
+                        />
+                        <span className="break-all">{item.contact}</span>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+                <div>
+                  { contact_info_right.map((item, subIndex) =>
+                    item.contact ? (
+                      <div key={subIndex} className="flex items-center gap-2 pl-3">
+                        <img
+                          src={item.image}
+                          alt=""
+                          className="w-4 h-4 text-red-600 flex-shrink-0"
+                        />
+                        <span className="break-all">{item.contact}</span>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-       <div className='bg-red-600' style={{
+       <div className='bg-red-600 p-0 m-0' style={{
         height: '6px',
-        width: '40%',
+        width: '35%',
         clipPath: 'polygon(0 0, 95% 0, 100% 100%, 0% 100%)'
       }} />
       <div className="h-1 bg-red-600 mb-6"></div>
@@ -245,15 +259,34 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
   );
 
   const LeftColumnContent = () => (
-    <div className="w-2/5 p-4 space-y-4 text-sm bg-white">
+    <div className="pl-7 p-4 space-y-4 text-sm bg-white" style={{width:'35%'}}>
       {/* Professional Summary */}
       {cvData.summary && (
         <div>
           <SectionHeader icon={<img src={UserIcon} alt="User" className="w-4 h-4" />} title="PROFESSIONAL SUMMARY" isLeftColumn />
-          <p className="text-black leading-relaxed text-sm ml-5">{cvData.summary}</p>
+          <p className="text-black leading-relaxed text-sm ml-6">{cvData.summary}</p>
         </div>
       )}
 
+      {/* Skills (moved from left column) */}
+      {cvData.skills && Array.isArray(cvData.skills) && cvData.skills.length > 0 && (
+        <div>
+          <SectionHeader icon={<img src={AwardIcon} alt="Award" className="w-4 h-4" />} title="SKILLS" />
+          <div className="space-y-2 ml-6">
+            {cvData.skills.map((skill, index) => {
+              const level = skill.level || 'Intermediate';
+              return (
+              <div key={index}>
+                <div className="text-sm text-black mb-1">
+                  <b>{skill.category}: </b> {skill.skills.join(', ')}
+                </div>
+                <ProgressBar percentage={getSkillLevel(level)} />
+              </div>
+            )}
+            )}
+          </div>
+        </div>
+      )}
       {/* Education */}
       {cvData.education && cvData.education.length > 0 && (
         <div>
@@ -262,16 +295,16 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
             {cvData.education.map((edu, index) => (
               <div key={index} className="space-y-2">
                 <div className="flex justify-between items-start">
-                  <span className="text-red-600 font-bold mr-2 ml-1">•</span>
+                  <span className="text-red-600 font-bold mr-3 ml-2">•</span>
                   <div className="flex-1 pr-3">
                     <h4 className="text-black text-sm mb-1">{(edu.institution || '').toUpperCase()}</h4>
                     {edu.field && <p className="text-sm text-black">{edu.field}</p>}
                   </div>
                 </div>
-                <div className="text-sm text-black flex-shrink-0 ml-4">
+                <div className="text-sm text-black flex-shrink-0 ml-6">
                     {`${processDateRange(edu.start_date, edu.end_date)}`}
                   </div>
-                <p className="font-bold text-red-600 text-sm ml-4">{edu.degree || ''}</p>
+                <p className="font-bold text-red-600 text-sm ml-6">{edu.degree || ''}</p>
               </div>
             ))}
           </div>
@@ -282,7 +315,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       {cvData.contact?.links && Object.keys(cvData.contact.links).length > 0 && (
         <div>
           <SectionHeader icon={<img src={LinkedinIcon} alt="Linkedin" className="w-4 h-4" />} title="LINKS" isLeftColumn />
-          <div className="space-y-2 ml-5">
+          <div className="space-y-2 ml-6">
             {Object.entries(cvData.contact.links).map(([linkType, linkUrl], index) => (
               <div key={index}>
                 <p className="text-sm font-bold text-black mb-1">{linkType.toUpperCase()}:</p>
@@ -301,7 +334,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       {cvData.languages_spoken && cvData.languages_spoken.length > 0 && (
         <div>
           <SectionHeader icon={<img src={LanguageIcon} alt="Language" className="w-4 h-4" />} title="LANGUAGES" isLeftColumn />
-          <div className="space-y-2 ml-5">
+          <div className="space-y-2 ml-6">
             {cvData.languages_spoken.map((language, index) => {
               const lang = typeof language === 'string' ? language : language.language || language.name || '';
               const level = typeof language === 'string' ? 'Intermediate' : language.level || 'Intermediate';
@@ -324,7 +357,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
             {cvData.certifications.map((cert, index) => (
               <div>
                 <div key={index} className="flex text-sm text-black items-start">
-                  <span className="text-red-600 font-bold mr-3 ml-1">•</span>
+                  <span className="text-red-600 font-bold mr-3 ml-2">•</span>
                   <div>
                     <p className="text-sm text-gray-600">{cert.issuer}</p>
                     <p className="text-sm text-gray-600">{cert.date}</p>
@@ -338,11 +371,13 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
           </div>
         </div>
       )}
+
+      
     </div>
   );
 
   const RightColumnContent = () => (
-    <div className="w-3/5 p-4 space-y-4 text-sm bg-white">
+    <div className="p-4 pr-10 space-y-4 text-sm bg-white" style={{width:'65%'}}>
       {/* Work Experience */}
       {cvData.experience && cvData.experience.length > 0 && (
         <div>
@@ -351,10 +386,10 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
             {cvData.experience.map((exp, index) => (
               <div key={index} className="space-y-2">
                 <div className="flex items-start">
-                  <span className="text-red-600 font-bold mr-2">•</span>
+                  <span className="text-red-600 font-bold ml-2 mr-2">•</span>
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
-                      <div className="flex-1 pr-3">
+                      <div className="flex-1">
                         <h4 className="text-black text-sm mb-1">{(exp.company || '').toUpperCase()}</h4>
                         <p className="text-sm text-black">{exp.location || ''}</p>
                       </div>
@@ -390,7 +425,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
               <div key={index} className="space-y-2">
                 
                 <div className="flex justify-between items-start">
-                  <span className="text-red-600 font-bold mr-2">•</span>
+                  <span className="text-red-600 font-bold ml-2 mr-2">•</span>
                   <div className="flex-1 pr-3">
                     <h4 className="font-medium text-black text-sm mb-1">{(project.project_name || '').toUpperCase()}</h4>
                     <p className="text-sm text-black">{project.organization || ''}</p>
@@ -407,30 +442,14 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
           </div>
         </div>
       )}
-
-      {/* Skills (moved from left column) */}
-      {cvData.skills && Array.isArray(cvData.skills) && cvData.skills.length > 0 && (
-        <div>
-          <SectionHeader icon={<img src={AwardIcon} alt="Award" className="w-4 h-4" />} title="SKILLS" />
-          <div className="space-y-2 ml-3">
-            {cvData.skills.map((skill, index) => (
-              <div key={index}>
-                <div className="text-sm text-black mb-1">
-                  • <b>{skill.category}: </b> {skill.skills.join(', ')}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 
   const CVPage = ({ content, isFirstPage }: { content: PageContent, isFirstPage: boolean }) => (
     <div 
-      className="bg-white mx-auto w-full max-w-full mb-4" 
+      className="bg-white mx-auto w-full max-w-[900px] my-12 mb-8" 
       style={{ 
-        maxWidth: '100%',
+        maxWidth: '900px',
         width: '100%',
         minHeight: '297mm',
         pageBreakAfter: 'always'
