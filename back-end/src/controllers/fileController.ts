@@ -11,76 +11,75 @@ const upload = multer({ storage });
 
 export default upload;
 
-async function convertPDFToText(pdfBuffer: Buffer): Promise<string> {
+// Refactored: now handles any file type
+async function convertFileToText(fileBuffer: Buffer, extension: string): Promise<string> {
   try {
-    console.log('Converting PDF to text using ConvertAPI...');
-    
-    // Create a temporary PDF file
-    const tempPdfPath = path.join(__dirname, '../../temp_upload.pdf');
-    fs.writeFileSync(tempPdfPath, pdfBuffer);
-    
+    console.log(`Converting ${extension} file to text using ConvertAPI...`);
+
+    // Create a temporary file with the correct extension
+    const tempFilePath = path.join(__dirname, `../../temp_upload${extension}`);
+    fs.writeFileSync(tempFilePath, fileBuffer);
+
     // Initialize ConvertAPI with your API token
-    // You should set this as an environment variable
     const apiToken = process.env.CONVERTAPI_TOKEN || 'your-api-token-here';
     const convertapi = new ConvertAPI(apiToken);
-    
-    // Convert PDF to text
-    const result = await convertapi.convert('txt', { File: tempPdfPath }, 'pdf');
-    
+
+    // Remove the leading dot from extension for ConvertAPI
+    const fromFormat = extension.replace(/^\./, '');
+
+    // Convert file to text
+    const result = await convertapi.convert('txt', { File: tempFilePath }, fromFormat);
+
     // Save the converted text file to a temp path
     const tempTxtPath = path.join(__dirname, '../../temp_upload.txt');
     await result.file.save(tempTxtPath);
     const text = fs.readFileSync(tempTxtPath, 'utf-8');
-    
+
     // Clean up temporary files
     try {
-      fs.unlinkSync(tempPdfPath);
+      fs.unlinkSync(tempFilePath);
       fs.unlinkSync(tempTxtPath);
     } catch (cleanupError) {
       console.error('Error cleaning up temporary files:', cleanupError);
     }
-    
-    console.log('PDF to text conversion completed');
+
+    console.log(`${extension} to text conversion completed`);
     return text;
   } catch (error) {
-    console.error('Error converting PDF to text:', error);
+    console.error(`Error converting ${extension} to text:`, error);
     throw error;
   }
 }
 
-async function extractContentAndLinks(pdfBuffer: Buffer): Promise<{ content: string[], links: string[] }> {
+// Update extractContentAndLinks to use convertFileToText
+async function extractContentAndLinks(fileBuffer: Buffer, extension: string): Promise<{ content: string[], links: string[] }> {
   try {
-    // Convert PDF to text using ConvertAPI
-    const textContent = await convertPDFToText(pdfBuffer);
-    
+    // Convert file to text using ConvertAPI
+    const textContent = await convertFileToText(fileBuffer, extension);
+
     // Split the text into pages (assuming pages are separated by form feeds or page breaks)
     const pages = textContent.split(/\f/).filter(page => page.trim());
-    
+
     // For now, we'll treat the entire text as one page if no page breaks are found
     const extractedText = pages.length > 0 ? pages : [textContent];
-        
-    const pdfDataArray = new Uint8Array(pdfBuffer);
-    // Initialize the PDF.js worker
-    // You might need to configure the workerSrc depending on your setup
-    // pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.mjs'; 
-  
-    const pdfDocument = await pdfjsLib.getDocument({ 
-      data: pdfDataArray,
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true
-    }).promise;
 
-    const extractedLinks: string[] = [];
-
-    for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-      const page = await pdfDocument.getPage(pageNum);
-
-      // Extract annotations (including links)
-      const annotations = await page.getAnnotations();
-      for (const annotation of annotations) {
-        if (annotation.subtype === 'Link' && annotation.url) { // Check for Link annotations with a URL
-          extractedLinks.push(annotation.url);
+    // Only extract links if PDF
+    let extractedLinks: string[] = [];
+    if (extension === '.pdf') {
+      const pdfDataArray = new Uint8Array(fileBuffer);
+      const pdfDocument = await pdfjsLib.getDocument({
+        data: pdfDataArray,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true
+      }).promise;
+      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+        const page = await pdfDocument.getPage(pageNum);
+        const annotations = await page.getAnnotations();
+        for (const annotation of annotations) {
+          if (annotation.subtype === 'Link' && annotation.url) {
+            extractedLinks.push(annotation.url);
+          }
         }
       }
     }
@@ -88,7 +87,6 @@ async function extractContentAndLinks(pdfBuffer: Buffer): Promise<{ content: str
       content: extractedText,
       links: extractedLinks
     };
-  
   } catch (error) {
     console.error('Error extracting content and links:', error);
     return {
@@ -99,7 +97,6 @@ async function extractContentAndLinks(pdfBuffer: Buffer): Promise<{ content: str
 }
 
 export const uploadFile = async (req: Request, res: Response) => {
-  
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   let filePath: string | undefined;
   try {
@@ -112,11 +109,12 @@ export const uploadFile = async (req: Request, res: Response) => {
     } else {
       return res.status(400).json({ message: 'File data not found' });
     }
-
+    // Get file extension from originalname
+    const extension = path.extname(req.file.originalname).toLowerCase();
     // Use ConvertAPI to extract content and links
-    console.log("Extracting PDF Links ...")
-    const extractedData = await extractContentAndLinks(dataBuffer);
-    console.log("Extracting PDF Links Completed.")
+    console.log("Extracting File Content and Links ...")
+    const extractedData = await extractContentAndLinks(dataBuffer, extension);
+    console.log("Extracting File Content and Links Completed.")
     // If extracted content is null or empty, use the file buffer as text
     let content: string;
     if (!extractedData.content || extractedData.content.length === 0) {
@@ -128,15 +126,14 @@ export const uploadFile = async (req: Request, res: Response) => {
         content = extractedData.content.join('\n');
       }
     }
-    content = content + '\n\n' + extractedData.links.join('\n')
-    console.log("Extracting PDF Links ...")
+    content = "Filename: "+ req.file.originalname +'\n\n' + content + '\n\n' + extractedData.links.join('\n')
+    console.log("Sending to OpenAI ...")
     const result = await sendToOpenAI(content);
-    console.log("Extracting PDF Links Completed.")
+    console.log("OpenAI Processing Completed.")
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Internal server error', error: (error as Error).message });
   } finally {
-    // Remove the uploaded file from disk if it exists
     if (filePath) {
       try {
         fs.unlinkSync(filePath);

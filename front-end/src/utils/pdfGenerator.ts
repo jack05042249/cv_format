@@ -29,13 +29,13 @@ export const generatePDF = async (
   filename: string
 ) => {
   console.log(options)
-  const pdf = new jsPDF({ format: 'a4', unit: 'mm' });
+  const pdf = new jsPDF({ format: [200, 280], unit: 'mm' });
   const pageWidth = pdf.internal.pageSize.width;
   console.log(pageWidth)
   const pageHeight = pdf.internal.pageSize.height;
 
   // Define colors
-  const redColor = [185, 25, 47]; // #B9192F
+  const redColor = [220, 38, 38]; //rgb(255, 0, 34)
   const grayColor = [188, 190, 192]; // #BCBEC0
   const blackColor = [0, 0, 0];
 
@@ -77,15 +77,11 @@ export const generatePDF = async (
     // Handle different name display options
     if (options.downloadOption === 'name_initial') {
       // Show first name and last name initial
-      pdf.text(firstName.toUpperCase(), margin, yPos);
-      yPos += 11;
-      pdf.text(lastName.charAt(0).toUpperCase(), margin, yPos);
+      pdf.text(`${firstName.toUpperCase()} ${lastName.charAt(0).toUpperCase()}`, margin, yPos);
       yPos += headerSpacing;
     } else {
       // Show full name (both full and name_only options)
-      pdf.text(firstName.toUpperCase(), margin, yPos);
-      yPos += 11;
-      pdf.text(lastName.toUpperCase(), margin, yPos);
+      pdf.text(`${firstName.toUpperCase()} ${lastName.toUpperCase()}`, margin, yPos);
       yPos += headerSpacing;
     }
   } else {
@@ -95,6 +91,7 @@ export const generatePDF = async (
     pdf.text('PROFESSIONAL CV', margin, yPos);
     yPos += headerSpacing + 4;
   }
+  let contactY = yPos
 
   pdf.setFontSize(12);
   pdf.setFont('Lato-Regular', 'normal');
@@ -113,6 +110,49 @@ export const generatePDF = async (
   // Header Logo Image
   pdf.addImage(Logo, 'PNG', pageWidth - 38, 8, 20, 0);
   
+  const optimizeTwoColumnWidths = (
+    contact_info: { contact: string; image: string; width: number }[]
+  ): [{ contact: string; image: string; width: number }[], number, number, number] => {
+    // Step 1: Sort items descending by width
+    const sorted = [...contact_info].sort((a, b) => a.width - b.width);
+
+    let solo: typeof contact_info[0] | null = null;
+    if (sorted.length % 2 === 1) {
+      solo = sorted.pop()!; // Remove the longest (last after sort ascending)
+    }
+    const result: typeof contact_info = [];
+    let left = 0;
+    let right = sorted.length - 1;
+    let maxwidthleft = 0
+    let maxwidthright = 0
+    let space = 10
+    while (left <= right) {
+      if (left === right) {
+        // Odd number, push the last single item
+        result.push(sorted[left]);
+        break;
+      }
+      // Pair the widest with narrowest to balance row width
+      result.push(sorted[left]);
+      result.push(sorted[right]);
+      if (maxwidthleft < sorted[left].width){
+        maxwidthleft = sorted[left].width
+      }
+      if (maxwidthright < sorted[right].width){
+        maxwidthright = sorted[right].width
+      }
+      left++;
+      right--;
+    }
+    if(solo){
+      result.push(solo)
+      if (solo.width > maxwidthleft + maxwidthright + 10) {
+        space = solo.width - (maxwidthleft + maxwidthright)
+      }
+    }
+    return [result, maxwidthleft, maxwidthright, space];
+  }
+
   // Contact info (right side) - only show for 'full' option
   if (options.includePersonalInfo && options.includePrivateInfo && options.downloadOption == 'full' && cvData.contact) {
     pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
@@ -124,50 +164,70 @@ export const generatePDF = async (
         ([key]) => key.toLowerCase() === "telegram"
       )?.[1] || "";
     }
-    let locationlength = 0
-    let emaillength = 0
-    let phone_length = 0
-    let telegram_length = 0
+    let contact_info: { contact: string; image: string; width: number }[] = [];
     if (cvData.contact.location) {
-      locationlength = cvData.contact.location.length
+      const safe = cvData.contact.location.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      contact_info = [
+        ...contact_info,
+        {
+          contact: safe,
+          image : Address_Icon,
+          width : pdf.getTextWidth(cvData.contact.location)
+        }
+      ]
     }
     if (cvData.contact.email) {
-      emaillength = cvData.contact.email.length
+      const safe = cvData.contact.email.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      contact_info = [
+        ...contact_info,
+        {
+          contact: safe,
+          image : Email_Icon,
+          width : pdf.getTextWidth(cvData.contact.email)
+        }
+      ]
     }
     if (cvData.contact.phone) {
-      phone_length = cvData.contact.phone.length
+      const safe = cvData.contact.phone.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      contact_info = [
+        ...contact_info,
+        {
+          contact: safe,
+          image : Phone_Icon,
+          width : pdf.getTextWidth(cvData.contact.phone)
+        }
+      ]
     }
     if (telegramUrl) {
-      telegram_length = telegramUrl.length
-    }
-    const maxlength = Math.max(locationlength, emaillength, phone_length, telegram_length)
-    let contactY = margin;
-    let contactX = pageWidth - margin - maxlength*1.6;
-    if (contactX > pageWidth*0.55){
-      contactX = pageWidth*0.55
+      contact_info = [
+        ...contact_info,
+        {
+          contact: telegramUrl,
+          image : Telegram_Icon,
+          width : pdf.getTextWidth(telegramUrl)
+        }
+      ]
     }
     
-    if (cvData.contact.location) {
-      contactY += contactSpacing;
-      const safe = cvData.contact.location.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      pdf.addImage(Address_Icon, 'PNG', contactX, contactY - 3.5, 4, 4);
-      pdf.text(safe, contactX + 6, contactY);
+    const [contact_info_sorted, maxwidthleft, maxwidthright, space]: [{ contact: string; image: string; width: number }[], number, number, number] = optimizeTwoColumnWidths(contact_info);
+    
+    contactY = contactY - contactSpacing
+    let contactX = pageWidth*0.55;
+    if ( contactX > pageWidth - margin - space - maxwidthright - maxwidthleft){
+      contactX = pageWidth - margin - space - maxwidthright - maxwidthleft
     }
-    if (cvData.contact.phone) {
+    for (let i = 0; i < contact_info_sorted.length; i += 2) {
       contactY += contactSpacing;
-      const safe = cvData.contact.phone.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      pdf.addImage(Phone_Icon, 'PNG', contactX, contactY - 3.5, 4, 4);
-      pdf.text(safe, contactX + 6, contactY);
-    }
-    if (telegramUrl) {
-      contactY += contactSpacing;
-      pdf.addImage(Telegram_Icon, 'PNG', contactX, contactY - 3.5, 4, 4);
-      pdf.text(telegramUrl, contactX + 6, contactY);
-    }
-    if (cvData.contact.email) {
-      contactY += contactSpacing;
-      pdf.addImage(Email_Icon, 'PNG', contactX, contactY - 3.5, 4, 4);
-      pdf.text(cvData.contact.email, contactX + 6, contactY);
+      const first = contact_info_sorted[i];
+      const second = contact_info_sorted[i + 1] ?? null
+      
+      pdf.addImage(first.image, 'PNG', contactX, contactY - 3.5, 4, 4);
+      pdf.text(first.contact, contactX + 6, contactY);
+
+      if (second) {
+        pdf.addImage(second.image, 'PNG', contactX + space + maxwidthleft, contactY - 3.5, 4, 4);
+        pdf.text(second.contact, contactX + space + 6 + maxwidthleft, contactY);
+      }
     }
     contactY += 3
     if (contactY > yPos){
@@ -217,7 +277,7 @@ export const generatePDF = async (
     
     // Underline
     const headerWidth = isLeftColumn ? 15 : 20;
-    const grayWidth = isLeftColumn ? leftColumnWidth - 15 : rightColumnWidth - 20;
+    const grayWidth = isLeftColumn ? leftColumnWidth - 15 : rightColumnWidth - margin;
     
     pdf.setDrawColor(redColor[0], redColor[1], redColor[2]);
     pdf.setLineWidth(0.5);
@@ -242,7 +302,7 @@ export const generatePDF = async (
       // Draw separator line on new page
       pdf.setDrawColor(redColor[0], redColor[1], redColor[2]);
       pdf.setLineWidth(0.5);
-      pdf.line(pageWidth*leftColumnRatio, margin - 3, pageWidth*leftColumnRatio, pageHeight - margin);
+      pdf.line(pageWidth*leftColumnRatio, margin - 3, pageWidth*leftColumnRatio, pageHeight - margin +3);
     }
   };
 
@@ -279,8 +339,8 @@ export const generatePDF = async (
 
       checkLeftPageOverflow(education_institution_year.length * eduheight);
       pdf.setTextColor(redColor[0], redColor[1], redColor[2]);
-      pdf.setFontSize(13);
-      pdf.setFont('Lato-Black', 'bold');
+      pdf.setFontSize(10);
+      pdf.setFont('Lato-Bold', 'bold');
       pdf.text("•", margin-5.5, leftY)
       
       pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
@@ -351,18 +411,18 @@ export const generatePDF = async (
       checkLeftPageOverflow(lineSpacing * 2);
       pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
       pdf.setFontSize(10);
-      pdf.setFont('Lato-Light', 'normal');
+      pdf.setFont('Lato-Regular', 'normal');
       const langLines = pdf.splitTextToSize(lang, leftColumnWidth - 5);
       pdf.text(langLines, margin, leftY, { maxWidth: leftColumnWidth - 5 });
       const barWidth = leftColumnWidth - 5;
       // Handle CEFR levels (A1, A2, B1, B2, C1, C2) and other levels
       let levelValue = 0.5; // Default
       if (level === 'C2' || level === 'Native') levelValue = 1.0;
-      else if (level === 'C1' || level === 'Advanced') levelValue = 0.9;
-      else if (level === 'B2' || level === 'Upper Intermediate') levelValue = 0.8;
-      else if (level === 'B1' || level === 'Intermediate') levelValue = 0.7;
-      else if (level === 'A2' || level === 'Elementary') levelValue = 0.6;
-      else if (level === 'A1' || level === 'Beginner') levelValue = 0.5;
+      else if (level === 'C1' || level === 'Advanced') levelValue = 1.0;
+      else if (level === 'B2' || level === 'Upper Intermediate') levelValue = 0.75;
+      else if (level === 'B1' || level === 'Intermediate') levelValue = 0.6;
+      else if (level === 'A2' || level === 'Elementary') levelValue = 0.45;
+      else if (level === 'A1' || level === 'Beginner') levelValue = 0.25;
       
       pdf.setFillColor(grayColor[0], grayColor[1], grayColor[2]);
       pdf.rect(margin, leftY + 2, barWidth, 1, 'F');
@@ -379,8 +439,8 @@ export const generatePDF = async (
     leftY = addSectionHeader('CERTIFICATIONS', margin, leftY, BookOpen_Icon, true);
     cvData.certifications.forEach((cert) => {
       pdf.setTextColor(redColor[0], redColor[1], redColor[2]);
-      pdf.setFontSize(13);
-      pdf.setFont('Lato-Black', 'bold');
+      pdf.setFontSize(10);
+      pdf.setFont('Lato-Blod', 'bold');
       pdf.text("•", margin-5.5, leftY)
 
       if (cert.issuer) {  
@@ -421,7 +481,7 @@ export const generatePDF = async (
 
   // Helper function to check and add new page for right column
   const checkRightPageOverflow = (nextBlockHeight: number) => {
-    if (rightY + nextBlockHeight > pageHeight - margin) {
+    if (rightY + nextBlockHeight > pageHeight - margin + 5) {
       rightpagenumber += 1
       if (rightpagenumber <= pagenumber){
         pdf.setPage(rightpagenumber)
@@ -432,9 +492,57 @@ export const generatePDF = async (
       // Draw separator line on new page
       pdf.setDrawColor(redColor[0], redColor[1], redColor[2]);
       pdf.setLineWidth(0.5);
-      pdf.line(pageWidth*leftColumnRatio, margin - 3, pageWidth*leftColumnRatio, pageHeight - margin);
+      pdf.line(pageWidth*leftColumnRatio, margin - 3, pageWidth*leftColumnRatio, pageHeight - margin + 3);
     }
   };
+
+  const drawStyledText = (
+    pdf: jsPDF, 
+    segments: { text: string; font: string; style: string }[], 
+    x: number, 
+    y: number, 
+    maxWidth: number, 
+    lineHeight: number
+  ) =>{
+    let textX = x
+    let textY = y
+    segments.forEach((segment, index) => {
+      pdf.setFont(segment.font, segment.style);
+      const words = pdf.splitTextToSize(segment.text, maxWidth - textX + x)
+      if(words.length == 1) {
+        const wordWidth = pdf.getTextWidth(segment.text);
+        pdf.text(segment.text, textX, textY);
+        textX += wordWidth;
+        if(index == 2){
+          textY += lineHeight
+        }
+      } else {
+        pdf.text(words[0], textX, textY);
+        textX = x;
+        textY += lineHeight;
+
+        const lefttext = segment.text.split(words[0])[1]
+        const lefttextlength = pdf.splitTextToSize(lefttext, maxWidth).length
+        pdf.text(lefttext, textX, textY, {maxWidth: maxWidth})
+        textY += lineHeight*lefttextlength
+      }
+    });
+    return { textX, textY };
+  }
+
+  const multilineText = (
+    pdf: jsPDF, 
+    text: string, 
+    maxWidth: number, 
+    lineHeight: number,
+  ) =>{
+    const words = pdf.splitTextToSize(text, maxWidth)
+    words.forEach((element: string) => {
+      checkRightPageOverflow(lineHeight)
+      pdf.text(element, rightColumnStart, rightY);
+      rightY += lineHeight;
+    });
+  }
   // Work Experience
   if (Array.isArray(cvData.experience) && cvData.experience.length > 0) {
     checkRightPageOverflow(sectionSpacing);
@@ -442,8 +550,8 @@ export const generatePDF = async (
     cvData.experience.forEach((exp) => {
       checkRightPageOverflow(lineSpacing * 4);
       pdf.setTextColor(redColor[0], redColor[1], redColor[2]);
-      pdf.setFontSize(13);
-      pdf.setFont('Lato-Black', 'bold');
+      pdf.setFontSize(10);
+      pdf.setFont('Lato-Bold', 'bold');
       pdf.text("•", rightColumnStart-5.5, rightY)
       // Company & Dates
       pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
@@ -451,11 +559,13 @@ export const generatePDF = async (
       pdf.setFont('Lato-Light', 'normal');
       const dateRange = processDateRange(exp.start_date, exp.end_date)
       const companyLines = pdf.splitTextToSize((exp.company || ''), rightColumnWidth - dateRange.length*1.6);
-      pdf.text((exp.company || ''), rightColumnStart, rightY, { maxWidth: rightColumnWidth - dateRange.length*1.6 });
-      pdf.setFontSize(10);
       pdf.text(dateRange, pageWidth - margin - dateRange.length*1.9, rightY);
+      if(exp.company){
+        pdf.text(exp.company, rightColumnStart, rightY, { maxWidth: rightColumnWidth - dateRange.length*1.6 });
+        pdf.setFontSize(10);
+        rightY += companyLines.length * lineSpacing + 1;
+      }  
       
-      rightY += companyLines.length * lineSpacing + 1;
       // Location
       if (exp.location) {
         pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
@@ -469,10 +579,12 @@ export const generatePDF = async (
       pdf.setTextColor(redColor[0], redColor[1], redColor[2]);
       pdf.setFont('Lato-Bold', 'bold');
       pdf.setFontSize(10);
-      const titleLines = pdf.splitTextToSize(exp.title || '', rightColumnWidth);
-      pdf.text(exp.title?.toUpperCase() || '', rightColumnStart, rightY, { maxWidth: rightColumnWidth});
-      rightY += titleLines.length * lineSpacing + 1;
-      
+      if(exp.title){
+        const titleLines = pdf.splitTextToSize(exp.title, rightColumnWidth);
+        pdf.text(exp.title.toUpperCase(), rightColumnStart, rightY, { maxWidth: rightColumnWidth});
+        rightY += titleLines.length * lineSpacing + 1;
+      }
+        
       // Summary
       if (exp.summary) {
         pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
@@ -488,8 +600,8 @@ export const generatePDF = async (
         pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
         pdf.setFont('Lato-Light', 'normal');
         exp.description.forEach((desc) => {
-          const descwidth = pdf.getTextWidth(`• ${desc}`.trim())
-          const descLines = Math.floor((descwidth + rightColumnWidth - 1) / rightColumnWidth)
+          const descwidth = pdf.splitTextToSize(`• ${desc}`, rightColumnWidth)
+          const descLines = descwidth.length//Math.floor((descwidth + rightColumnWidth - 1) / rightColumnWidth)
           checkRightPageOverflow(lineSpacing * descLines);
           pdf.setFontSize(10);
           pdf.text(`• ${desc}`, rightColumnStart, rightY, { maxWidth: rightColumnWidth});
@@ -500,31 +612,30 @@ export const generatePDF = async (
     });
     rightY += lineSpacing + smallLineSpacing;
   }
-
   // Projects
   if (Array.isArray(cvData.projects) && cvData.projects.length > 0) {
     checkRightPageOverflow(sectionSpacing);
     rightY = addSectionHeader('PROJECTS', rightColumnStart, rightY, Briefcase_Icon);
     cvData.projects.forEach((project) => {
-      let blockHeight = lineSpacing * 2;
-      checkRightPageOverflow(blockHeight);
+      checkRightPageOverflow(lineSpacing * 2);
       pdf.setTextColor(redColor[0], redColor[1], redColor[2]);
-      pdf.setFontSize(13);
-      pdf.setFont('Lato-Black', 'bold');
+      pdf.setFontSize(10);
+      pdf.setFont('Lato-Bold', 'bold');
       pdf.text("•", rightColumnStart-5.5, rightY)
 
       pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
       pdf.setFontSize(10);
       pdf.setFont('Lato-Bold', 'bold');
       const dateRange = processDateRange(project.start_date, project.end_date)
-      const projectNameLines = pdf.splitTextToSize((project.project_name || '').toUpperCase(), rightColumnWidth - dateRange.length*1.6);
+      const projectNameWidth = pdf.getTextWidth((project.project_name || ''))
+      const projectLines = Math.floor((projectNameWidth + pageWidth - margin - dateRange.length*1.6 - rightColumnStart - 1 ) / (pageWidth - margin - dateRange.length*1.6 - rightColumnStart));
       pdf.text((project.project_name || ''), rightColumnStart, rightY, { maxWidth: rightColumnWidth - dateRange.length*1.6 });
       pdf.setFontSize(10);
       pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
       pdf.setFont('Lato-Light', 'normal');
       pdf.text(dateRange, pageWidth - margin - dateRange.length*1.6, rightY);
-      console.log(projectNameLines.length)
-      rightY += projectNameLines.length * lineSpacing + 1;
+      console.log(projectLines)
+      rightY += projectLines * lineSpacing + 1;
       pdf.setFontSize(10);
       pdf.setFont('Lato-Light', 'normal');
       if (project.organization) {
@@ -534,16 +645,14 @@ export const generatePDF = async (
         rightY += orgLines.length * lineSpacing + 2;
       }
      
-      if (project.description) blockHeight = pdf.splitTextToSize(project.description, rightColumnWidth - 5).length * lineSpacing;
-      checkRightPageOverflow(blockHeight);
-      const descLines = pdf.splitTextToSize(project.description || '', rightColumnWidth - 5);
-      pdf.setFontSize(10);
-      pdf.text(project.description || '', rightColumnStart, rightY, { maxWidth: rightColumnWidth - 5 });
-      rightY += descLines.length * lineSpacing + smallLineSpacing;
+      if (project.description) {
+        const projectheight = pdf.getLineHeight()/2.835
+        multilineText(pdf, project.description, rightColumnWidth, projectheight)
+        rightY += smallLineSpacing;
+        }
     });
     rightY += lineSpacing + smallLineSpacing;
-  }
-
+  } 
   // Skills
   if (Array.isArray(cvData.skills) && cvData.skills.length > 0) {
     checkRightPageOverflow(sectionSpacing);
@@ -555,60 +664,22 @@ export const generatePDF = async (
       pdf.setFont('Lato-Light', 'normal');
       pdf.setFontSize(10);
       const skilllineheight = pdf.getLineHeight()/2.835
-      const skillwidth = pdf.getTextWidth(skill.skills.join(", ").trim())
-      const skillLines = Math.floor((skillwidth + rightColumnWidth - 1) / rightColumnWidth)
-      checkRightPageOverflow(lineSpacing * (skillLines + 1));
-      pdf.text(skill.skills.join(", "), rightColumnStart, rightY, { maxWidth: rightColumnWidth });
-      rightY += skilllineheight * (skillLines - 1)
-    
-      const skillLevel = 0.8;
-      pdf.setFillColor(grayColor[0], grayColor[1], grayColor[2]);
-      pdf.rect(rightColumnStart, rightY + 2, rightColumnWidth, 1, 'F');
-      pdf.setFillColor(redColor[0], redColor[1], redColor[2]);
-      pdf.rect(rightColumnStart, rightY + 2, rightColumnWidth * skillLevel, 1, 'F');
-      rightY += skilllineheight*2;
+      const skilltext = [
+        { text: `• `, font: 'Lato-Light', style: 'normal' },
+        { text: `${skill.category}: `, font: 'Lato-Bold', style: "bold" },
+        { text: `${skill.skills.join(', ').trim()}`, font: 'Lato-Light', style: 'normal' }
+      ];
+      const skillwidth = pdf.splitTextToSize(`• ${skill.category}: ${skill.skills.join(', ').trim()}`, rightColumnWidth)
+      const skillLines = skillwidth.length//Math.floor((skillwidth + rightColumnWidth - 1) / rightColumnWidth)
+      checkRightPageOverflow(lineSpacing * skillLines);
+      rightY = drawStyledText(pdf, skilltext, rightColumnStart, rightY, rightColumnWidth, skilllineheight).textY
+      rightY += skillLines/2
     });
     pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
     pdf.setFont('Lato-Light', 'normal');
     pdf.setFontSize(10);
-    // for (let i = 0; i < skill_total.length; i += 2) {
-    //   const first = skill_total[i];
-    //   const second = skill_total[i + 1] ?? null; // handle case where second might not exist
-
-    //   const skillcolumnwidth = (rightColumnWidth - 10)/2
-    //   let skillline = 0
-    //   // First skill
-    //   const firstwidth = pdf.getTextWidth(first.trim())
-    //   const firstLines = Math.floor((firstwidth + skillcolumnwidth - 1) / skillcolumnwidth)
-    //   checkRightPageOverflow(lineSpacing * (firstLines + 1));
-    //   pdf.text(first, rightColumnStart, rightY, { maxWidth: skillcolumnwidth });
-    //   skillline = firstLines
-    //   const skillLevel = 0.8;
-    //   pdf.setFillColor(grayColor[0], grayColor[1], grayColor[2]);
-    //   pdf.rect(rightColumnStart, rightY + 2, skillcolumnwidth, 1, 'F');
-    //   pdf.setFillColor(redColor[0], redColor[1], redColor[2]);
-    //   pdf.rect(rightColumnStart, rightY + 2, skillcolumnwidth * skillLevel, 1, 'F');
-
-    //   if(second){
-    //     const secondwidth = pdf.getTextWidth(second.trim())
-    //     const secondLines = Math.floor((secondwidth + skillcolumnwidth - 1) / skillcolumnwidth)
-    //     checkRightPageOverflow(lineSpacing * (secondLines + 1));
-    //     pdf.text(second, rightColumnStart + skillcolumnwidth + 10, rightY, { maxWidth: skillcolumnwidth });
-
-    //     pdf.setFillColor(grayColor[0], grayColor[1], grayColor[2]);
-    //     pdf.rect(rightColumnStart + skillcolumnwidth + 10, rightY + 2, skillcolumnwidth, 1, 'F');
-    //     pdf.setFillColor(redColor[0], redColor[1], redColor[2]);
-    //     pdf.rect(rightColumnStart + skillcolumnwidth + 10, rightY + 2, skillcolumnwidth * skillLevel, 1, 'F');
-
-    //     skillline = Math.max(firstLines, secondLines)
-    //   }
-
-    //   rightY += lineSpacing*skillline + smallLineSpacing*2;
-    //   // console.log("Pair:", first, second);
-    // }
     rightY += sectionSpacing / 2;
   }
-
   // Download the PDF
   pdf.save(filename);
 };

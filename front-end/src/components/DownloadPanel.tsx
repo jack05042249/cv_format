@@ -14,9 +14,9 @@ export const DownloadPanel: React.FC<DownloadPanelProps> = ({ cvData, options })
     const lastName = cvData.last_name || '';
     const position = cvData.title || '';
     
-    // if (!firstName || !lastName || !position) {
-    //   return 'CV.pdf';
-    // }
+    if (!firstName || !lastName) {
+      return `Professional_${position}_CV.pdf`;
+    }
 
     switch (downloadOption) {
       case 'full':

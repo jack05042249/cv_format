@@ -12,6 +12,7 @@ import PhoneIcon from '../img/phone.png';
 import EmailIcon from '../img/email.png';
 import AddressIcon from '../img/address.png';
 import LinkedinIcon from '../img/linkedin.png';
+import TelegramIcon from '../img/telegram.png'
 
 interface CVPreviewProps {
   cvData: CVData;
@@ -27,15 +28,110 @@ interface PageContent {
 export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
   const [pages, setPages] = useState<PageContent[]>([]);
 
-  const getSkillLevel = () => 100;
+  const optimizeTwoColumnWidths = (
+    contact_info: { contact: string; image: string; width: number }[]
+  ): [{ contact: string; image: string; width: number }[], number, number, number] => {
+    // Step 1: Sort items descending by width
+    const sorted = [...contact_info].sort((a, b) => a.width - b.width);
 
+    let solo: typeof contact_info[0] | null = null;
+    if (sorted.length % 2 === 1) {
+      solo = sorted.pop()!; // Remove the longest (last after sort ascending)
+    }
+    const result: typeof contact_info = [];
+    let left = 0;
+    let right = sorted.length - 1;
+    let maxwidthleft = 0
+    let maxwidthright = 0
+    let space = 5
+    while (left <= right) {
+      if (left === right) {
+        // Odd number, push the last single item
+        result.push(sorted[left]);
+        break;
+      }
+      // Pair the widest with narrowest to balance row width
+      result.push(sorted[left]);
+      result.push(sorted[right]);
+      if (maxwidthleft < sorted[left].width){
+        maxwidthleft = sorted[left].width
+      }
+      if (maxwidthright < sorted[right].width){
+        maxwidthright = sorted[right].width
+      }
+      left++;
+      right--;
+    }
+    if(solo){
+      result.push(solo)
+      if (solo.width > maxwidthleft + maxwidthright + 10) {
+        space = solo.width - (maxwidthleft + maxwidthright)
+      }
+    }
+    return [result, maxwidthleft, maxwidthright, space];
+  }
+  let telegramUrl = ""
+  let contact_info: { contact: string; image: string; width: number }[] = [];
+  if(cvData.contact){
+    if(cvData.contact.links){
+      telegramUrl = Object.entries(cvData.contact.links).find(
+        ([key]) => key.toLowerCase() === "telegram"
+      )?.[1] || "";
+    }
+    
+    if (cvData.contact.location) {
+      const safe = cvData.contact.location.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      contact_info = [
+        ...contact_info,
+        {
+          contact: safe,
+          image : AddressIcon,
+          width :cvData.contact.location.length
+        }
+      ]
+    }
+    if (cvData.contact.email) {
+      const safe = cvData.contact.email.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      contact_info = [
+        ...contact_info,
+        {
+          contact: safe,
+          image : EmailIcon,
+          width : cvData.contact.email.length
+        }
+      ]
+    }
+    if (cvData.contact.phone) {
+      const safe = cvData.contact.phone.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      contact_info = [
+        ...contact_info,
+        {
+          contact: safe,
+          image : PhoneIcon,
+          width : cvData.contact.phone.length
+        }
+      ]
+    }
+    if (telegramUrl) {
+      contact_info = [
+        ...contact_info,
+        {
+          contact: telegramUrl,
+          image : TelegramIcon,
+          width : telegramUrl.length
+        }
+      ]
+    }
+  }
+  const [contact_info_sorted]: [{ contact: string; image: string; width: number }[], number, number, number] = optimizeTwoColumnWidths(contact_info);
+  
   const getLanguageLevel = (level?: string) => {
     if (level === 'C2' || level === 'Native') return 100;
-    else if (level === 'C1' || level === 'Advanced') return 90;
-    else if (level === 'B2' || level === 'Upper Intermediate') return 80;
-    else if (level === 'B1' || level === 'Intermediate') return 70;
-    else if (level === 'A2' || level === 'Elementary') return 60;
-    else if (level === 'A1' || level === 'Beginner') return 50;
+    else if (level === 'C1' || level === 'Advanced') return 100;
+    else if (level === 'B2' || level === 'Upper Intermediate') return 75;
+    else if (level === 'B1' || level === 'Intermediate') return 60;
+    else if (level === 'A2' || level === 'Elementary') return 45;
+    else if (level === 'A1' || level === 'Beginner') return 25;
     else return 70;
   };
 
@@ -66,25 +162,19 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       {/* Header Section */}
       <div className="p-4 pb-3">
         <div className="flex justify-between items-start h-full">
-          <div className="w-3/4 pl-6">
+          <div className="pl-6" style={{width: '55%'}}>
             {options.includePersonalInfo ? (
               <>
                 {options.downloadOption === 'name_initial' ? (
                   <>
                     <h1 className="text-3xl font-bold text-red-600 leading-tight mb-1">
-                      {(cvData.first_name || '').toUpperCase()}
-                    </h1>
-                    <h1 className="text-3xl font-bold text-red-600 leading-tight mb-2">
-                      {(cvData.last_name || '').charAt(0).toUpperCase()}
+                      {(cvData.first_name || '').toUpperCase()} {(cvData.last_name || '').charAt(0).toUpperCase()}
                     </h1>
                   </>
                 ) : (
                   <>
                     <h1 className="text-3xl font-bold text-red-600 leading-tight mb-1">
-                      {(cvData.first_name || '').toUpperCase()}
-                    </h1>
-                    <h1 className="text-3xl font-bold text-red-600 leading-tight mb-2">
-                      {(cvData.last_name || '').toUpperCase()}
+                      {(cvData.first_name || '').toUpperCase()} {(cvData.last_name || '').toUpperCase()}
                     </h1>
                   </>
                 )}
@@ -111,32 +201,35 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
               </>
             )}
           </div>
-          
           <div className="flex flex-col items-end">
             {/* Company Logo */}
-            <img src={Logo} alt="Company Logo" className="w-24 object-contain mb-3 bg-white rounded" />
-            
+            <img src={Logo} alt="Company Logo" className="w-24 object-contain mb-3 bg-white rounded" />          
             {cvData.contact && (
               <div className="text-sm text-black space-y-1 text-right">
-                {cvData.contact.location && (
-                  <div className="flex items-center justify-start gap-2">
-                    <img src={AddressIcon} alt="Address" className="w-4 h-4 text-red-600 flex-shrink-0" />
-                    <span className="break-all">{cvData.contact.location}</span>
-                  </div>
-                )}
-                {cvData.contact.phone && (
-                  <div className="flex items-center justify-start gap-2">
-                    <img src={PhoneIcon} alt="Phone" className="w-4 h-4 text-red-600 flex-shrink-0" />
-                    <span className="break-all">{cvData.contact.phone}</span>
-                  </div>
-                )}
-                {cvData.contact.email && (
-                  <div className="flex items-center justify-start gap-2">
-                    <img src={EmailIcon} alt="Email" className="w-4 h-4 text-red-600 flex-shrink-0" />
-                    <span className="break-all">{cvData.contact.email}</span>
-                  </div>
-                )}
-              </div>
+                { contact_info_sorted.reduce<{ contact: string; image: string; width: number; }[][]>((acc, _, index, arr) => {
+                          // Group items in pairs (two items per row)
+                          if (index % 2 === 0) {
+                            acc.push(arr.slice(index, index + 2)); // slice the next two items
+                          }
+                          return acc;
+                        }, [])
+                        .map((pair, index) => (
+                          <div key={index} className="flex items-center justify-start gap-2">
+                            {pair.map((item, subIndex) =>
+                              item.contact ? (
+                                <div key={subIndex} className="flex items-center gap-2 pl-3">
+                                  <img
+                                    src={item.image}
+                                    alt=""
+                                    className="w-4 h-4 text-red-600 flex-shrink-0"
+                                  />
+                                  <span className="break-all">{item.contact}</span>
+                                </div>
+                              ) : null
+                            )}
+                          </div>
+                        ))}
+                    </div>
             )}
           </div>
         </div>
@@ -229,12 +322,17 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
           <SectionHeader icon={<img src={BookOpenIcon} alt="Book Open" className="w-4 h-4" />} title="CERTIFICATIONS" isLeftColumn />
           <div className="space-y-2">
             {cvData.certifications.map((cert, index) => (
-              <div key={index} className="flex text-sm text-black justify-between items-start">
-                <span className="text-red-600 font-bold mr-3 ml-1">•</span>
-                <p className="flex-1 pr-3 leading-relaxed">
+              <div>
+                <div key={index} className="flex text-sm text-black items-start">
+                  <span className="text-red-600 font-bold mr-3 ml-1">•</span>
+                  <div>
+                    <p className="text-sm text-gray-600">{cert.issuer}</p>
+                    <p className="text-sm text-gray-600">{cert.date}</p>
+                  </div>
+                </div>              
+                <p className="flex-1 ml-5 text-sm text-red-600 font-medium">
                   {(cert.name || '').toUpperCase()}
                 </p>
-                {cert.issuer && <p className="text-sm text-gray-600">{cert.issuer}</p>}
               </div>
             ))}
           </div>
@@ -318,9 +416,8 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
             {cvData.skills.map((skill, index) => (
               <div key={index}>
                 <div className="text-sm text-black mb-1">
-                  {skill.skills.join(', ')}
+                  • <b>{skill.category}: </b> {skill.skills.join(', ')}
                 </div>
-                <ProgressBar percentage={getSkillLevel()} />
               </div>
             ))}
           </div>

@@ -93,7 +93,9 @@ export interface Project {
   start_date?: string;
   end_date?: string;
   description?: string;
+  summary?: string;
 }
+// Used in CVData.projects and ProjectEditor
 
 export interface CVData {
   first_name?: string;

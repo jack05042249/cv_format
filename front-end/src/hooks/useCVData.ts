@@ -72,12 +72,12 @@ export const useCVData = () => {
         return;
       }
 
-      // Validate that we have at least some basic data
-      if (!response.first_name && !response.last_name && !response.title) {
-        setUploadError('The uploaded file does not contain valid CV data. Please check the file format.');
-        setIsLoaded(false);
-        return;
-      }
+      // // Validate that we have at least some basic data
+      // if (!response.first_name && !response.last_name && !response.title) {
+      //   setUploadError('The uploaded file does not contain valid CV data. Please check the file format.');
+      //   setIsLoaded(false);
+      //   return;
+      // }
 
       // Merge with initial data to ensure all required fields exist
       const mergedData: CVData = {

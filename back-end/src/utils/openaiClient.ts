@@ -54,7 +54,7 @@ export const sendToOpenAI = async (content: string) => {
           "languages_spoken": [
             {
               language:"",
-              level:'A1'?'A2'?'B1'?'B2'?'C1'?:'C2'
+              level:'A1'?'A2'?'B1'?'B2'?'C1'?:'C2'?:'Basic'?:'Beginner'?:'Intermediate'?:'Upper Intermediate'?:'Advanced'?:'Native'?
             },
           ],
         }` },
