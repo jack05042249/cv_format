@@ -5,6 +5,7 @@ import { sendToOpenAI } from "../utils/openaiClient";
 import multer from "multer";
 // import ConvertAPI from 'convertapi';
 // import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import mammoth from "mammoth";
 import { createCanvas } from "canvas";
 import Tesseract from "tesseract.js";
@@ -42,19 +43,19 @@ async function extractContentAndLinks(
     let extractedText: string[] = [];
     if (extension === ".pdf") {
       const pdfDataArray = new Uint8Array(fileBuffer);
+      const pdfDocument = await getDocument({
+        data: pdfDataArray,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true
+      }).promise;
+      // const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
       // const pdfDocument = await pdfjsLib.getDocument({
       //   data: pdfDataArray,
       //   useWorkerFetch: false,
       //   isEvalSupported: false,
-      //   useSystemFonts: true
+      //   useSystemFonts: true,
       // }).promise;
-      const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-      const pdfDocument = await pdfjsLib.getDocument({
-        data: pdfDataArray,
-        useWorkerFetch: false,
-        isEvalSupported: false,
-        useSystemFonts: true,
-      }).promise;
       for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
         const page = await pdfDocument.getPage(pageNum);
         // Extract text content
@@ -70,6 +71,7 @@ async function extractContentAndLinks(
           }
         }
       }
+      console.log(extractedText);
       // OCR fallback if all extracted text is empty or whitespace
       if (extractedText.join("").trim() === "") {
         extractedText = [];
