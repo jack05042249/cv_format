@@ -8,7 +8,7 @@ import multer from "multer";
 import mammoth from "mammoth";
 import { createCanvas } from "canvas";
 import Tesseract from "tesseract.js";
-const pdf_poppler = require("pdf-poppler");
+// const pdf_poppler = require("pdf-poppler");
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -16,6 +16,20 @@ const upload = multer({ storage });
 // pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export default upload;
+
+import { exec } from "child_process";
+import util from "util";
+
+const execPromise = util.promisify(exec);
+
+async function convertPdfPageToImage(
+  pdfPath: string,
+  pageNum: number,
+  outputPath: string
+) {
+  const cmd = `pdftoppm -f ${pageNum} -l ${pageNum} -jpeg "${pdfPath}" "${outputPath}"`;
+  await execPromise(cmd);
+}
 
 // Update extractContentAndLinks to use convertFileToText
 async function extractContentAndLinks(
@@ -60,32 +74,33 @@ async function extractContentAndLinks(
       if (extractedText.join("").trim() === "") {
         extractedText = [];
         let allImageFiles: string[] = [];
+        const outputPrefix = filepath
+          ? path.join(
+              path.dirname(filepath),
+              path.basename(filepath, path.extname(filepath))
+            )
+          : "/tmp/pdf_page";
+
         for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-          let opts = {
-            format: "jpeg",
-            out_dir: filepath ? path.dirname(filepath) : "",
-            out_prefix: filepath
-              ? path.basename(filepath, path.extname(filepath))
-              : "",
-            page: pageNum,
-          };
-          await pdf_poppler
-            .convert(filepath, opts)
-            .then((res: any) => {
-              console.log(res, "Successfully converted");
-            })
-            .catch((error: any) => {
-              console.error(error);
-            });
-          // Find all generated image files for this page
-          const prefix = opts.out_prefix;
-          const outDir = opts.out_dir;
+          const cmd = `pdftoppm -jpeg -f ${pageNum} -l ${pageNum} "${filepath}" "${outputPrefix}"`;
+
+          try {
+            const { stdout, stderr } = await execPromise(cmd);
+            console.log(`Page ${pageNum} converted`, stdout || stderr);
+          } catch (error) {
+            console.error(`Error converting page ${pageNum}:`, error);
+          }
+
+          // Find all generated JPEGs like outputPrefix-1.jpg, outputPrefix-2.jpg, etc.
+          const outDir = path.dirname(outputPrefix);
+          const prefix = path.basename(outputPrefix);
           const imageFiles = fs
             .readdirSync(outDir)
             .filter((f: string) => f.startsWith(prefix) && f.endsWith(".jpg"))
             .map((f: string) => path.join(outDir, f));
           allImageFiles.push(...imageFiles);
         }
+
         // Run OCR on all images in parallel
         const ocrResults = await Promise.all(
           allImageFiles.map((imgPath) =>
@@ -95,7 +110,8 @@ async function extractContentAndLinks(
           )
         );
         extractedText.push(...ocrResults);
-        // Optionally, clean up image files after OCR
+
+        // Clean up image files
         for (const imgPath of allImageFiles) {
           try {
             fs.unlinkSync(imgPath);
@@ -187,20 +203,16 @@ export const uploadFile = async (req: Request, res: Response) => {
     // If extracted content is null or empty, use the file buffer as text
     let content: string;
     if (!extractedData.content || extractedData.content.length === 0) {
-      res
-        .status(500)
-        .json({
+      res.status(500).json({
+        message:
+          "Unable to process this file. Please check the file type and content.",
+      });
+    } else {
+      if (extractedData.content.join("").trim() == "") {
+        res.status(500).json({
           message:
             "Unable to process this file. Please check the file type and content.",
         });
-    } else {
-      if (extractedData.content.join("").trim() == "") {
-        res
-          .status(500)
-          .json({
-            message:
-              "Unable to process this file. Please check the file type and content.",
-          });
       } else {
         content = extractedData.content.join("\n");
         content =
@@ -217,12 +229,10 @@ export const uploadFile = async (req: Request, res: Response) => {
       }
     }
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: "Internal server error",
-        error: (error as Error).message,
-      });
+    res.status(500).json({
+      message: "Internal server error",
+      error: (error as Error).message,
+    });
   } finally {
     if (filePath) {
       try {
