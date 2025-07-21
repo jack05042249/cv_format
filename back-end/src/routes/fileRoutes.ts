@@ -4,6 +4,6 @@ import upload from '../middleware/multerConfig';
 
 const router = Router();
 
-router.post('/upload', upload.single('file'), uploadFile);
+router.post('/file/upload', upload.single('file'), uploadFile);
 
 export default router; 

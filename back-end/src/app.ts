@@ -16,7 +16,7 @@ app.use((req, res, next) => {
 app.use(cors({ origin: '*'}));
 app.use(express.json());
 
-app.use('/api/file', fileRoutes);
+app.use('/api', fileRoutes);
 
 app.get('/', (req, res) => {
   res.send('CV Reformat Backend Running');
