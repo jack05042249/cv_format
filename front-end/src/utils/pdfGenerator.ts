@@ -629,7 +629,10 @@ export const generatePDF = async (
       pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
       pdf.setFontSize(11);
       pdf.setFont('Lato-Regular', 'normal');
-      const dateRange = processDateRange(exp.start_date, exp.end_date)
+      let dateRange = processDateRange(exp.start_date, exp.end_date)
+      if (!exp.end_date){
+        dateRange = dateRange + " - Present"
+      }
       const companyLines = pdf.splitTextToSize((exp.company || ''), rightColumnWidth - dateRange.length*1.6);
       pdf.text(dateRange, pageWidth - margin - dateRange.length*1.9, rightY);
       if(exp.company){

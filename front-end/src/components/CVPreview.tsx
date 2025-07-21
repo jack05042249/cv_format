@@ -30,7 +30,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
 
   const optimizeTwoColumnWidths = (
     contact_info: { contact: string; image: string; width: number }[]
-  ): [{ contact: string; image: string; width: number }[], { contact: string; image: string; width: number }[], number, number, number] => {
+  ): [{ contact: string; image: string; width: number }[], { contact: string; image: string; width: number }[], { contact: string; image: string; width: number }[], number, number, number] => {
     // Step 1: Sort items descending by width
     const sorted = [...contact_info].sort((a, b) => a.width - b.width);
 
@@ -41,6 +41,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
     const result: typeof contact_info = [];
     const leftresult :typeof contact_info = [];
     const rightresult :typeof contact_info = [];
+    const soloresult :typeof contact_info = [];
     let left = 0;
     let right = sorted.length - 1;
     let maxwidthleft = 0
@@ -55,6 +56,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       // Pair the widest with narrowest to balance row width
       leftresult.push(sorted[left]);
       rightresult.push(sorted[right]);
+      
       if (maxwidthleft < sorted[left].width){
         maxwidthleft = sorted[left].width
       }
@@ -65,12 +67,12 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       right--;
     }
     if(solo){
-      leftresult.push(solo)
+      soloresult.push(solo)
       if (solo.width > maxwidthleft + maxwidthright + 10) {
         space = solo.width - (maxwidthleft + maxwidthright)
       }
     }
-    return [leftresult, rightresult, maxwidthleft, maxwidthright, space];
+    return [leftresult, rightresult, soloresult,  maxwidthleft, maxwidthright, space];
   }
   let telegramUrl = ""
   let contact_info: { contact: string; image: string; width: number }[] = [];
@@ -125,7 +127,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
       ]
     }
   }
-  const [contact_info_left, contact_info_right]: [{ contact: string; image: string; width: number }[], { contact: string; image: string; width: number }[], number, number, number] = optimizeTwoColumnWidths(contact_info);
+  const [contact_info_left, contact_info_right, contact_info_solo]: [{ contact: string; image: string; width: number }[], { contact: string; image: string; width: number }[], { contact: string; image: string; width: number }[], number, number, number] = optimizeTwoColumnWidths(contact_info);
   
   const getLanguageLevel = (level?: string) => {
     if (level === 'C2' || level === 'Native') return 100;
@@ -214,23 +216,40 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
             {/* Company Logo */}
             <img src={Logo} alt="Company Logo" className="w-24 object-contain mb-3 bg-white rounded" />          
             {cvData.contact && (
-              <div className="text-black text-right flex" style={{fontSize:'12px'}}>
-                <div>
-                  { contact_info_left.map((item, subIndex) =>
-                    item.contact ? (
-                      <div key={subIndex} className="flex items-center gap-2 pl-3">
-                        <img
-                          src={item.image}
-                          alt=""
-                          className="w-4 h-4 text-red-600 flex-shrink-0"
-                        />
-                        <span className="break-all">{item.contact}</span>
-                      </div>
-                    ) : null
-                  )}
+              <>
+              <div className="text-black text-right" style={{fontSize:'12px'}}>
+                <div className="flex">
+                  <div>
+                    { contact_info_left.map((item, subIndex) =>
+                      item.contact ? (
+                        <div key={subIndex} className="flex items-center gap-2 pl-3">
+                          <img
+                            src={item.image}
+                            alt=""
+                            className="w-4 h-4 text-red-600 flex-shrink-0"
+                          />
+                          <span className="break-all">{item.contact}</span>
+                        </div>
+                      ) : null
+                    )}
+                  </div>
+                  <div>
+                    { contact_info_right.map((item, subIndex) =>
+                      item.contact ? (
+                        <div key={subIndex} className="flex items-center gap-2 pl-3">
+                          <img
+                            src={item.image}
+                            alt=""
+                            className="w-4 h-4 text-red-600 flex-shrink-0"
+                          />
+                          <span className="break-all">{item.contact}</span>
+                        </div>
+                      ) : null
+                    )}
+                  </div>
                 </div>
-                <div>
-                  { contact_info_right.map((item, subIndex) =>
+                <div className="text-black text-right flex" style={{fontSize:'12px'}}>
+                  { contact_info_solo.map((item, subIndex) =>
                     item.contact ? (
                       <div key={subIndex} className="flex items-center gap-2 pl-3">
                         <img
@@ -244,6 +263,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
                   )}
                 </div>
               </div>
+              </>
             )}
           </div>
         </div>
@@ -394,7 +414,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({ cvData, options }) => {
                         <p className="text-sm text-black">{exp.location || ''}</p>
                       </div>
                       <div className="text-sm text-black text-right flex-shrink-0">
-                        {`${processDateRange(exp.start_date, exp.end_date)}`}
+                        {`${processDateRange(exp.start_date, exp.end_date)}${!exp.end_date ? ' - Present' : ''}`}
                       </div>
                     </div>
                     <p className="text-red-600 font-medium text-sm">{exp.title || ''}</p>

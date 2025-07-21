@@ -61,7 +61,7 @@ export const sendToOpenAI = async (content: string) => {
       { role: 'user', content: `Here is the content of the pdf:\n${content}` },
     ],
     temperature: 0.1,
-    max_tokens: 1024,
+    max_tokens: 8192,
   });
 
   const experiencePromise = openai.chat.completions.create({
