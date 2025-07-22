@@ -49,7 +49,7 @@ export const generatePDF = async (
   const lineSpacing = 5;
   const smallLineSpacing = 2;
   const contactSpacing = 7;
-  const leftColumnRatio = 0.35;
+  const leftColumnRatio = 0.37;
   const leftColumnWidth = (pageWidth * leftColumnRatio - margin - 7);
   const rightColumnStart = pageWidth * leftColumnRatio + 12; // 8mm gap
   const rightColumnWidth = pageWidth - rightColumnStart - margin;
@@ -304,27 +304,9 @@ export const generatePDF = async (
     }
   };
 
-  // Professional Summary
-  if (cvData.summary) {
-    checkLeftPageOverflow(sectionSpacing);
-    leftY = addSectionHeader('PROFESSIONAL SUMMARY', margin, leftY, User_Icon, true);
-    pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
-    pdf.setFontSize(10);
-    pdf.setFont('Lato-Regular', 'normal');
-    
-    // const summaryWidth = pdf.splitTextToSize(cvData.summary, leftColumnWidth).length;
-    const summaryheight = pdf.getLineHeight() / 2.835
-    const summaryLines = pdf.splitTextToSize(cvData.summary, leftColumnWidth).length;
-    checkLeftPageOverflow(summaryLines*summaryheight);
-    pdf.text(cvData.summary, margin, leftY, { maxWidth: leftColumnWidth});
-    console.log(summaryLines, summaryheight)
-    leftY += summaryLines*summaryheight;
-
-    leftY += sectionpadding
-  }
   const drawStyledText = (
     pdf: jsPDF, 
-    segments: { text: string; font: string; style: string }[], 
+    segments: { text: string; font: string; style: string, color: number[] }[], 
     x: number,  
     maxWidth: number, 
     lineHeight: number
@@ -332,6 +314,7 @@ export const generatePDF = async (
     let textX = x
     segments.forEach((segment, index) => {
       pdf.setFont(segment.font, segment.style);
+      pdf.setTextColor(segment.color[0], segment.color[1], segment.color[2])
       const words = pdf.splitTextToSize(segment.text, maxWidth - textX + x)
       if(words.length == 1) {
         checkLeftPageOverflow(lineHeight)
@@ -358,6 +341,31 @@ export const generatePDF = async (
     });
     return { textX, leftY };
   }
+  // Professional Summary
+  if (cvData.summary) {
+    checkLeftPageOverflow(sectionSpacing);
+    leftY = addSectionHeader('PROFESSIONAL SUMMARY', margin, leftY, User_Icon, true);
+    pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
+    pdf.setFontSize(10);
+    pdf.setFont('Lato-Regular', 'normal');
+    
+    // const summaryWidth = pdf.splitTextToSize(cvData.summary, leftColumnWidth).length;
+    const summary = [
+      // { text: `• `, font: 'Lato-Light', style: 'normal' },
+      { text: cvData.summary,  font: 'Lato-Regular', style: 'normal', color: blackColor  },
+    ];
+    
+    const summaryheight = pdf.getLineHeight() / 2.835
+    const summaryLines = pdf.splitTextToSize(cvData.summary, leftColumnWidth).length;
+    if (leftY + summaryLines*summaryheight > pageHeight - margin){
+      drawStyledText(pdf, summary, margin, leftColumnWidth, summaryheight)
+    } else {
+      pdf.text(cvData.summary, margin, leftY, { maxWidth: leftColumnWidth});
+      leftY += summaryLines*summaryheight;
+    }
+    leftY += sectionpadding
+  }
+
   // Skills
   if (Array.isArray(cvData.skills) && cvData.skills.length > 0) {
     checkLeftPageOverflow(sectionSpacing);
@@ -371,8 +379,8 @@ export const generatePDF = async (
       const skilllineheight = pdf.getLineHeight()/2.835
       const skilltext = [
         // { text: `• `, font: 'Lato-Light', style: 'normal' },
-        { text: `${skill.category}: `, font: 'Lato-Bold', style: "bold" },
-        { text: `${skill.skills.join(', ').trim()}`, font: 'Lato-Light', style: 'normal' }
+        { text: `${skill.category}: `, font: 'Lato-Bold', style: "bold", color: blackColor },
+        { text: `${skill.skills.join(', ').trim()}`, font: 'Lato-Regular', style: 'normal', color:blackColor }
       ];
       const skillwidth = pdf.splitTextToSize(`• ${skill.category}: ${skill.skills.join(', ').trim()}`, rightColumnWidth)
       const skillLines = skillwidth.length//Math.floor((skillwidth + rightColumnWidth - 1) / rightColumnWidth)
@@ -567,40 +575,6 @@ export const generatePDF = async (
       pdf.line(pageWidth*leftColumnRatio, margin - 3, pageWidth*leftColumnRatio, pageHeight - margin + 3);
     }
   };
-
-  // const drawStyledText1 = (
-  //   pdf: jsPDF, 
-  //   segments: { text: string; font: string; style: string }[], 
-  //   x: number, 
-  //   y: number, 
-  //   maxWidth: number, 
-  //   lineHeight: number
-  // ) =>{
-  //   let textX = x
-  //   let textY = y
-  //   segments.forEach((segment, index) => {
-  //     pdf.setFont(segment.font, segment.style);
-  //     const words = pdf.splitTextToSize(segment.text, maxWidth - textX + x)
-  //     if(words.length == 1) {
-  //       const wordWidth = pdf.getTextWidth(segment.text);
-  //       pdf.text(segment.text, textX, textY);
-  //       textX += wordWidth;
-  //       if(index == segments.length - 1){
-  //         textY += lineHeight
-  //       }
-  //     } else {
-  //       pdf.text(words[0], textX, textY);
-  //       textX = x;
-  //       textY += lineHeight;
-
-  //       const lefttext = segment.text.split(words[0])[1]
-  //       const lefttextlength = pdf.splitTextToSize(lefttext, maxWidth).length
-  //       pdf.text(lefttext, textX, textY, {maxWidth: maxWidth})
-  //       textY += lineHeight*lefttextlength
-  //     }
-  //   });
-  //   return { textX, textY };
-  // }
 
   const multilineText = (
     pdf: jsPDF, 

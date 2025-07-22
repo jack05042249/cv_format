@@ -25,7 +25,6 @@ export async function uploadFile(file: File) {
     method: 'POST',
     body: formData,
   });
-  console.log('File upload response:', res);
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.message || 'File upload failed');
