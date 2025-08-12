@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useRef } from 'react';
 import { Upload, FileText } from 'lucide-react';
 
 interface FileUploadProps {
@@ -8,22 +8,30 @@ interface FileUploadProps {
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading, uploadError }) => {
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
     const file = files[0];
     
     if (file && (file.type === 'application/pdf' || file.type.includes('document'))) {
       onFileUpload(file);
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
     }
-  }, [onFileUpload]);
+  }
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
       onFileUpload(file);
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
     }
-  }, [onFileUpload]);
+  }
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -56,6 +64,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isLoading,
               accept=".pdf,.doc,.docx"
               onChange={handleFileInput}
               disabled={isLoading}
+              ref={inputRef}
             />
           </label>
 

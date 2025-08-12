@@ -105,10 +105,10 @@ function App() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {/* Left Column - Editor */}
+        <div className="grid grid-cols-1 xl:grid-cols-9 gap-8">
+          {/* Left Column - Editor (40%) */}
           
-          <div className="space-y-6">
+          <div className="xl:col-span-4 space-y-6">
 
             <DownloadPanel
               cvData={cvData}
@@ -121,8 +121,8 @@ function App() {
             />
           </div>
 
-          {/* Right Column - Preview */}
-          <div className="space-y-6">
+          {/* Right Column - Preview (60%) */}
+          <div className="xl:col-span-5 space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-6 border-b border-slate-200">
                 <h2 className="text-xl font-semibold text-slate-800 mb-2">Live Preview</h2>

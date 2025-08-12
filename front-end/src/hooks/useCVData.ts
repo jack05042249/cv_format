@@ -59,6 +59,48 @@ export const useCVData = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const reorderByStartDate = () => {
+    setCVData(prevData => {
+      const newData = { ...prevData };
+      
+      // Helper function to parse date strings
+      const parseDate = (dateStr?: string): Date => {
+        if (!dateStr) return new Date(0); // Default to epoch for missing dates
+        const date = new Date(dateStr);
+        return isNaN(date.getTime()) ? new Date(0) : date;
+      };
+
+      // Sort experiences by start_date (latest first)
+      if (newData.experience) {
+        newData.experience = [...newData.experience].sort((a, b) => {
+          const dateA = parseDate(a.start_date);
+          const dateB = parseDate(b.start_date);
+          return dateB.getTime() - dateA.getTime();
+        });
+      }
+
+      // Sort projects by start_date (latest first)
+      if (newData.projects) {
+        newData.projects = [...newData.projects].sort((a, b) => {
+          const dateA = parseDate(a.start_date);
+          const dateB = parseDate(b.start_date);
+          return dateB.getTime() - dateA.getTime();
+        });
+      }
+
+      // Sort education by start_date (latest first)
+      if (newData.education) {
+        newData.education = [...newData.education].sort((a, b) => {
+          const dateA = parseDate(a.start_date);
+          const dateB = parseDate(b.start_date);
+          return dateB.getTime() - dateA.getTime();
+        });
+      }
+
+      return newData;
+    });
+  };
+
   const loadCVFromFile = async (file: File) => {
     setUploadLoading(true);
     setUploadError(null);
@@ -80,6 +122,33 @@ export const useCVData = () => {
       // }
 
       // Merge with initial data to ensure all required fields exist
+      // Helper function to parse date strings
+      const parseDate = (dateStr?: string): Date => {
+        if (!dateStr) return new Date(0); // Default to epoch for missing dates
+        const date = new Date(dateStr);
+        return isNaN(date.getTime()) ? new Date(0) : date;
+      };
+
+      // Sort experiences by start_date (latest first)
+      const order_experience = response.experience ? [...response.experience].sort((a, b) => {
+        const dateA = parseDate(a.start_date);
+        const dateB = parseDate(b.start_date);
+        return dateB.getTime() - dateA.getTime();
+      }) : [];
+
+      // Sort projects by start_date (latest first)
+      const order_projects = response.projects ? [...response.projects].sort((a, b) => {
+        const dateA = parseDate(a.start_date);
+        const dateB = parseDate(b.start_date);
+        return dateB.getTime() - dateA.getTime();
+      }) : [];
+
+      // Sort education by start_date (latest first)
+      const order_education = response.education ? [...response.education].sort((a, b) => {
+        const dateA = parseDate(a.start_date);
+        const dateB = parseDate(b.start_date);
+        return dateB.getTime() - dateA.getTime();
+      }) : [];
       const mergedData: CVData = {
         ...initialCVData,
         ...response,
@@ -87,12 +156,12 @@ export const useCVData = () => {
           ...initialCVData.contact,
           ...response.contact,
         },
-        education: response.education || [],
-        experience: response.experience || [],
+        education: order_education,
+        experience: order_experience,
         certifications: response.certifications || [],
         internship_volunteering: response.internship_volunteering || [],
         languages_spoken: response.languages_spoken || [],
-        projects: response.projects || [],
+        projects: order_projects,
         skills: response.skills || [],
         expertise: response.expertise || {},
       };
@@ -120,5 +189,6 @@ export const useCVData = () => {
     loadCVFromFile,
     uploadLoading,
     uploadError,
+    reorderByStartDate,
   };
 };

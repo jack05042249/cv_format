@@ -29,7 +29,7 @@ export const generatePDF = async (
   filename: string
 ) => {
   console.log(options)
-  const pdf = new jsPDF({ format: [200, 280], unit: 'mm' });
+  const pdf = new jsPDF({ format: [200, 280], unit: 'mm', compress: true });
   const pageWidth = pdf.internal.pageSize.width;
   console.log(pageWidth)
   const pageHeight = pdf.internal.pageSize.height;
